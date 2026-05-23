@@ -1,9 +1,10 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { GraduationCap, Globe, Award, Star } from 'lucide-react'
+import { GraduationCap, Globe, Award, Star, X } from 'lucide-react'
 import { BRAND } from '@/lib/constants'
 import { fadeLeft, fadeRight } from '@/lib/animations'
+import Link from 'next/link'
 
 export default function AuthLayout({
   children,
@@ -11,7 +12,16 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex relative">
+      {/* Back to Home Button (Cross Icon) */}
+      <Link
+        href="/"
+        className="absolute top-6 right-6 z-50 flex items-center justify-center w-10 h-10 rounded-full border border-border bg-card/60 backdrop-blur-md text-muted-foreground hover:text-foreground hover:bg-card hover:scale-105 transition-all duration-300 shadow-sm"
+        aria-label="Back to Home"
+      >
+        <X className="w-5 h-5" />
+      </Link>
+
       {/* Left Side - Brand Showcase (Hidden on mobile) */}
       <motion.div
         variants={fadeLeft}
