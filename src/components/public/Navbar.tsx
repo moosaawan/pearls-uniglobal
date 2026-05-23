@@ -32,16 +32,28 @@ import {
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const pathname = usePathname()
   const { user, setUser } = useAuthStore()
 
   // Dynamic Auth State checking
   useEffect(() => {
+    setMounted(true)
     const supabase = createClient()
     
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
+        // Formulate user state from auth session immediately to prevent lag/fetching issues
+        const sessionUser = {
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || 'User',
+          role: session.user.user_metadata?.role || 'student',
+          account_status: 'approved', // fallback default
+        }
+
+        // Fetch actual profile from database in background
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -50,6 +62,8 @@ export default function Navbar() {
         
         if (profile) {
           setUser(profile as any)
+        } else {
+          setUser(sessionUser as any)
         }
       } else {
         setUser(null)
@@ -60,6 +74,14 @@ export default function Navbar() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        const sessionUser = {
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || 'User',
+          role: session.user.user_metadata?.role || 'student',
+          account_status: 'approved',
+        }
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -68,6 +90,8 @@ export default function Navbar() {
         
         if (profile) {
           setUser(profile as any)
+        } else {
+          setUser(sessionUser as any)
         }
       } else {
         setUser(null)
@@ -179,8 +203,11 @@ export default function Navbar() {
         </div>
 
         {/* Desktop Actions */}
-        <div className="hidden lg:flex items-center gap-3">
-          {user ? (
+        <div className="hidden lg:flex items-center gap-3 min-w-[220px] justify-end">
+          {!mounted ? (
+            /* Hydration Guard placeholder */
+            <div className="w-32 h-10 rounded-xl bg-white/5 animate-pulse border border-white/10" />
+          ) : user ? (
             /* Logged in: Hide both buttons, show only PFP with dynamic dropdown */
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -304,7 +331,10 @@ export default function Navbar() {
 
               {/* High-Contrast Action Buttons Area */}
               <div className="p-6 space-y-3 border-t border-white/10 bg-navy-dark shrink-0">
-                {user ? (
+                {!mounted ? (
+                  /* Hydration Guard placeholder */
+                  <div className="w-full h-24 rounded-xl bg-white/5 animate-pulse border border-white/10" />
+                ) : user ? (
                   /* Logged in on Mobile: Show User summary box with Dashboard, Settings, Logout options */
                   <div className="space-y-4">
                     <div className="flex items-center gap-3 px-1.5 py-1">
