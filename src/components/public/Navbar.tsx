@@ -256,7 +256,7 @@ export default function Navbar() {
                 href="/login"
                 className="text-sm text-white/70 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white/5 font-medium font-sans"
               >
-                PORTAL LOGIN
+                LOGIN
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
               <Link href="/free-assessment">
@@ -383,7 +383,7 @@ export default function Navbar() {
                         variant="outline"
                         className="w-full h-12 border-gold/30 text-gold hover:bg-gold/10 bg-navy-light/10 rounded-xl font-bold flex items-center justify-center gap-2"
                       >
-                        PORTAL LOGIN
+                        LOGIN
                         <ExternalLink className="w-4 h-4" />
                       </Button>
                     </Link>
