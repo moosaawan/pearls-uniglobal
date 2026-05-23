@@ -60,18 +60,20 @@ export default function TopBar({ onMenuClick, user }: TopBarProps) {
 
         {/* User dropdown */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-10 px-2 rounded-xl gap-2">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="bg-gold/10 text-gold text-xs font-bold font-sans">
-                  {getInitials(user?.full_name || 'U')}
-                </AvatarFallback>
-              </Avatar>
-              <span className="hidden md:block text-sm font-medium font-sans max-w-[120px] truncate">
-                {user?.full_name || 'User'}
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" className="h-10 px-2 rounded-xl gap-2">
+                <Avatar className="w-8 h-8">
+                  <AvatarFallback className="bg-gold/10 text-gold text-xs font-bold font-sans">
+                    {getInitials(user?.full_name || 'U')}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden md:block text-sm font-medium font-sans max-w-[120px] truncate">
+                  {user?.full_name || 'User'}
+                </span>
+              </Button>
+            }
+          />
           <DropdownMenuContent align="end" className="w-56 rounded-xl">
             <DropdownMenuLabel className="font-sans">
               <p className="font-semibold">{user?.full_name}</p>
