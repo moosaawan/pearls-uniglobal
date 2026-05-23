@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Menu, ExternalLink, LogOut, LayoutDashboard, Settings } from 'lucide-react'
+import { motion } from 'framer-motimport { Menu, ExternalLink, LogOut, LayoutDashboard, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_LINKS, BRAND } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
@@ -227,7 +226,7 @@ export default function Navbar() {
                 href="/login"
                 className="text-sm text-white/70 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white/5"
               >
-                LOGIN
+                PORTA
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
               <Link href="/free-assessment">
@@ -242,15 +241,17 @@ export default function Navbar() {
         {/* Mobile Menu */}
         <div className="lg:hidden">
           <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-white/10"
-              >
-                <Menu className="w-6 h-6" />
-              </Button>
-            </SheetTrigger>
+                 <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/10"
+                />
+              }
+            >
+              <Menu className="w-6 h-6" />
+       </SheetTrigger>
             <SheetContent
               side="right"
               className="w-[85%] sm:w-[350px] bg-navy border-navy-light/30 p-0 flex flex-col h-full"
@@ -341,11 +342,17 @@ export default function Navbar() {
                       Sign Out
                     </Button>
                   </div>
+                 className="w-full h-11 border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-xl font-sans"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </Button>
+                  </>
                 ) : (
                   <>
                     {/* Not Logged in: High-contrast gold & premium styling to fix all light/dark theme white-on-white bugs */}
                     <Link href="/login" onClick={() => setOpen(false)}>
-                      <Button
+                LOGINn
                         variant="outline"
                         className="w-full h-12 border-gold/30 text-gold hover:bg-gold/10 bg-navy-light/10 rounded-xl font-bold flex items-center justify-center gap-2"
                       >
