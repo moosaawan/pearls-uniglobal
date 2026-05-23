@@ -35,6 +35,12 @@ export default function StudentDashboard() {
   const { user, setUser } = useAuthStore()
   const router = useRouter()
   const [realtimeStatus, setRealtimeStatus] = useState<string | null>(null)
+  const [counts, setCounts] = useState({
+    applications: 0,
+    documents: 0,
+    universities: 5,
+    appointments: 0,
+  })
 
   // Real-time listener for status changes
   useEffect(() => {
@@ -67,6 +73,46 @@ export default function StudentDashboard() {
       supabase.removeChannel(channel)
     }
   }, [user, setUser])
+
+  // Fetch student stats
+  useEffect(() => {
+    if (!user) return
+
+    const fetchStudentStats = async () => {
+      try {
+        const supabase = createClient()
+        
+        // 1. Applications Count
+        const { count: appCount } = await supabase
+          .from('applications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        // 2. Documents Count
+        const { count: docCount } = await supabase
+          .from('documents')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        // 3. Appointments Count
+        const { count: aptCount } = await supabase
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+
+        setCounts({
+          applications: appCount || 0,
+          documents: docCount || 0,
+          universities: 5, // premium default
+          appointments: aptCount || 0,
+        })
+      } catch {
+        // keep defaults
+      }
+    }
+
+    fetchStudentStats()
+  }, [user])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -167,10 +213,10 @@ export default function StudentDashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { icon: FileText, label: 'Applications', value: '2', trend: '+1 this month', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-          { icon: FolderOpen, label: 'Documents', value: '8', trend: '3 verified', color: 'text-green-500', bg: 'bg-green-500/10' },
-          { icon: GraduationCap, label: 'Universities', value: '5', trend: 'Saved', color: 'text-purple-500', bg: 'bg-purple-500/10' },
-          { icon: Calendar, label: 'Appointments', value: '1', trend: 'Upcoming', color: 'text-orange-500', bg: 'bg-orange-500/10' },
+          { icon: FileText, label: 'Applications', value: counts.applications, trend: 'Active cases', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+          { icon: FolderOpen, label: 'Documents', value: counts.documents, trend: 'Uploaded files', color: 'text-green-500', bg: 'bg-green-500/10' },
+          { icon: GraduationCap, label: 'Universities', value: counts.universities, trend: 'Saved preferences', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+          { icon: Calendar, label: 'Appointments', value: counts.appointments, trend: 'Scheduled slots', color: 'text-orange-500', bg: 'bg-orange-500/10' },
         ].map((stat, idx) => (
           <motion.div key={idx} variants={fadeUp}>
             <Card className="border-border/50 shadow-sm hover:shadow-premium transition-all duration-300">
@@ -180,7 +226,7 @@ export default function StudentDashboard() {
                     <p className="text-muted-foreground text-sm font-sans">{stat.label}</p>
                     <p className="text-2xl font-bold text-foreground mt-1 font-sans">{stat.value}</p>
                     <p className="text-xs text-muted-foreground mt-1 font-sans flex items-center gap-1">
-                      <TrendingUp className="w-3 h-3" /> {stat.trend}
+                      <TrendingUp className="w-3 h-3 text-gold" /> {stat.trend}
                     </p>
                   </div>
                   <div className={`w-11 h-11 rounded-xl ${stat.bg} flex items-center justify-center`}>
@@ -194,12 +240,12 @@ export default function StudentDashboard() {
       </div>
 
       {/* Profile Completion + Quick Actions */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Completion */}
         <motion.div variants={fadeUp}>
           <Card className="border-border/50 shadow-sm h-full">
             <CardHeader>
-              <CardTitle className="text-base font-sans">Profile Completion</CardTitle>
+              <CardTitle className="text-base font-sans font-semibold">Profile Completion</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4 mb-4">
@@ -241,7 +287,7 @@ export default function StudentDashboard() {
         <motion.div variants={fadeUp} className="lg:col-span-2">
           <Card className="border-border/50 shadow-sm h-full">
             <CardHeader>
-              <CardTitle className="text-base font-sans">Quick Actions</CardTitle>
+              <CardTitle className="text-base font-sans font-semibold">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3">
@@ -262,12 +308,12 @@ export default function StudentDashboard() {
       </div>
 
       {/* Recent Activity + Application Status */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
         <motion.div variants={fadeUp}>
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-sans">Recent Activity</CardTitle>
+              <CardTitle className="text-base font-sans font-semibold">Recent Activity</CardTitle>
               <Button variant="ghost" size="sm" className="text-xs font-sans">View All</Button>
             </CardHeader>
             <CardContent>
@@ -292,7 +338,7 @@ export default function StudentDashboard() {
         <motion.div variants={fadeUp}>
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-sans">Application Progress</CardTitle>
+              <CardTitle className="text-base font-sans font-semibold">Application Progress</CardTitle>
               <Button variant="ghost" size="sm" asChild className="text-xs font-sans">
                 <Link href="/student/applications">View All <ArrowRight className="w-3 h-3 ml-1" /></Link>
               </Button>

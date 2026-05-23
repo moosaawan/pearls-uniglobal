@@ -13,8 +13,10 @@ import {
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile, UserRole } from '@/types/database'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuthStore()
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -41,6 +43,16 @@ export default function AdminUsersPage() {
   }, [])
 
   const handleApprove = async (id: string, name: string) => {
+    const targetUser = profiles.find(p => p.id === id)
+    if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'super_admin')) {
+      toast.error("Administrators cannot manage other admin accounts.")
+      return
+    }
+    if (id === currentUser?.id) {
+      toast.error("You cannot manage your own account.")
+      return
+    }
+
     try {
       const supabase = createClient()
       const { error } = await supabase
@@ -62,6 +74,16 @@ export default function AdminUsersPage() {
   }
 
   const handleReject = async (id: string, name: string) => {
+    const targetUser = profiles.find(p => p.id === id)
+    if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'super_admin')) {
+      toast.error("Administrators cannot manage other admin accounts.")
+      return
+    }
+    if (id === currentUser?.id) {
+      toast.error("You cannot manage your own account.")
+      return
+    }
+
     const confirmDelete = window.confirm(`Are you sure you want to reject and delete ${name}'s data? This will permanently erase their credentials and assessment profile from the entire system.`)
     if (!confirmDelete) return
 
@@ -85,6 +107,16 @@ export default function AdminUsersPage() {
   }
 
   const handleUpdateRole = async (id: string, name: string) => {
+    const targetUser = profiles.find(p => p.id === id)
+    if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'super_admin')) {
+      toast.error("Administrators cannot manage other admin accounts.")
+      return
+    }
+    if (id === currentUser?.id) {
+      toast.error("You cannot manage your own account.")
+      return
+    }
+
     try {
       const supabase = createClient()
       const { error } = await supabase
@@ -209,15 +241,31 @@ export default function AdminUsersPage() {
                   </CardContent>
                 </Card>
               ) : (
-                activeUsers.map((u) => (
-                  <motion.div key={u.id} variants={fadeUp}>
-                    <Card 
-                      className={`border-border/50 hover:shadow-premium shadow-sm transition-all duration-300 group cursor-pointer ${selectedUser === u.id ? 'border-gold bg-gold/5' : ''}`}
-                      onClick={() => {
-                        setSelectedUser(u.id === selectedUser ? null : u.id)
-                        setNewRole(u.role)
-                      }}
-                    >
+                activeUsers.map((u) => {
+                  const isAdmin = u.role === 'admin' || u.role === 'super_admin'
+                  const isSelf = u.id === currentUser?.id
+                  const isDisabled = isAdmin || isSelf
+                  return (
+                    <motion.div key={u.id} variants={fadeUp}>
+                      <Card 
+                        className={`border-border/50 transition-all duration-300 shadow-sm ${
+                          isDisabled 
+                            ? 'opacity-65 cursor-not-allowed bg-muted/10 border-dashed hover:border-dashed' 
+                            : 'hover:shadow-premium group cursor-pointer'
+                        } ${selectedUser === u.id ? 'border-gold bg-gold/5' : ''}`}
+                        onClick={() => {
+                          if (isDisabled) {
+                            if (isSelf) {
+                              toast.error("You cannot manage your own account.")
+                            } else {
+                              toast.error("Administrators cannot manage other admin accounts.")
+                            }
+                            return
+                          }
+                          setSelectedUser(u.id === selectedUser ? null : u.id)
+                          setNewRole(u.role)
+                        }}
+                      >
                       <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-sans text-xs">
                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
                           <div className="w-9 h-9 rounded-xl bg-navy/5 dark:bg-navy-light/10 text-foreground flex items-center justify-center font-bold text-sm shrink-0 border border-border/30 group-hover:border-gold/30 transition-all duration-300">
@@ -244,7 +292,8 @@ export default function AdminUsersPage() {
                       </CardContent>
                     </Card>
                   </motion.div>
-                ))
+                  )
+                })
               )}
             </div>
           </motion.div>

@@ -8,13 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { contactSchema, type ContactFormData } from '@/lib/validations'
 import { Phone, Mail, MapPin, Clock, Send, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { BRAND } from '@/lib/constants'
 
 
@@ -26,11 +27,28 @@ export default function ContactPage() {
 
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true)
-    // Simulate submission
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    toast.success('Message sent successfully! We\'ll get back to you soon.')
-    reset()
-    setIsSubmitting(false)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('contact_messages').insert({
+        name: data.name,
+        email: data.email,
+        phone: data.phone || null,
+        subject: data.subject || null,
+        message: data.message,
+      })
+
+      if (error) {
+        toast.error(error.message)
+        return
+      }
+
+      toast.success('Message sent successfully! We\'ll get back to you soon.')
+      reset()
+    } catch {
+      toast.error('An unexpected error occurred. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
