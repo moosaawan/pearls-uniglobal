@@ -4,12 +4,22 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Menu, ExternalLink, LogOut, User } from 'lucide-react'
+import { Menu, ExternalLink, LogOut, LayoutDashboard, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_LINKS, BRAND } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
 import { useAuthStore } from '@/stores/authStore'
 import { createClient } from '@/lib/supabase/client'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { getInitials } from '@/lib/utils'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Sheet,
   SheetTrigger,
@@ -81,7 +91,7 @@ export default function Navbar() {
     setOpen(false)
   }
 
-  // Get dynamic portal path based on role
+  // Get dynamic dashboard paths based on role
   const getPortalPath = () => {
     if (!user) return '/login'
     if (user.role === 'admin' || user.role === 'super_admin') return '/admin'
@@ -89,7 +99,15 @@ export default function Navbar() {
     return '/student'
   }
 
+  const getSettingsPath = () => {
+    if (!user) return '/login'
+    if (user.role === 'admin' || user.role === 'super_admin') return '/admin/settings'
+    if (user.role === 'staff') return '/staff/settings'
+    return '/student/settings'
+  }
+
   const portalPath = getPortalPath()
+  const settingsPath = getSettingsPath()
 
   return (
     <motion.header
@@ -163,23 +181,45 @@ export default function Navbar() {
         {/* Desktop Actions */}
         <div className="hidden lg:flex items-center gap-3">
           {user ? (
-            <>
-              {/* Logged in: Hide Book Consultation, show PORTAL LOGIN with Book Consultation properties */}
-              <Link href={portalPath}>
-                <Button className="bg-gradient-gold text-navy font-semibold px-6 py-2.5 h-auto rounded-xl shadow-gold hover:shadow-lg hover:scale-105 transition-all duration-300 text-sm flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  PORTAL LOGIN
+            /* Logged in: Hide both buttons, show only PFP with dynamic dropdown */
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-11 px-2.5 rounded-xl hover:bg-white/5 flex items-center gap-2 border border-gold/20 shadow-gold bg-navy-light/10">
+                  <Avatar className="w-8 h-8 ring-2 ring-gold/40">
+                    <AvatarFallback className="bg-gold/20 text-gold text-xs font-bold font-sans">
+                      {getInitials(user.full_name || 'U')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-white font-medium text-xs font-sans">
+                    {user.full_name?.split(' ')[0] || 'User'}
+                  </span>
                 </Button>
-              </Link>
-              <Button
-                variant="ghost"
-                onClick={handleLogout}
-                className="text-white/70 hover:text-red-400 hover:bg-white/5 rounded-xl h-10 px-3 text-sm flex items-center gap-1.5"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </Button>
-            </>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl border border-border shadow-premium bg-card text-foreground font-sans">
+                <DropdownMenuLabel className="font-sans">
+                  <p className="font-semibold text-foreground text-sm leading-tight">{user.full_name}</p>
+                  <p className="text-[11px] text-muted-foreground font-normal truncate mt-0.5">{user.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild className="font-sans cursor-pointer focus:bg-gold/10 focus:text-gold">
+                  <Link href={portalPath} className="flex items-center gap-2.5 w-full">
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="font-sans cursor-pointer focus:bg-gold/10 focus:text-gold">
+                  <Link href={settingsPath} className="flex items-center gap-2.5 w-full">
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="text-red-500 font-sans cursor-pointer focus:bg-red-500/10 focus:text-red-500">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <>
               {/* Not Logged in: Normal view */}
@@ -187,7 +227,7 @@ export default function Navbar() {
                 href="/login"
                 className="text-sm text-white/70 hover:text-white transition-colors flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white/5"
               >
-                PORTAL LOGIN
+                LOGIN
                 <ExternalLink className="w-3.5 h-3.5" />
               </Link>
               <Link href="/free-assessment">
@@ -263,23 +303,44 @@ export default function Navbar() {
               {/* High-Contrast Action Buttons Area */}
               <div className="p-6 space-y-3 border-t border-white/10 bg-navy-dark shrink-0">
                 {user ? (
-                  <>
-                    {/* Logged in: Hide Book Consultation, show PORTAL LOGIN with full gold background and dynamic path */}
-                    <Link href={portalPath} onClick={() => setOpen(false)}>
-                      <Button className="w-full h-12 bg-gradient-gold text-navy font-bold rounded-xl shadow-gold flex items-center justify-center gap-2 hover:opacity-90">
-                        <User className="w-4 h-4" />
-                        PORTAL LOGIN
-                      </Button>
-                    </Link>
+                  /* Logged in on Mobile: Show User summary box with Dashboard, Settings, Logout options */
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 px-1.5 py-1">
+                      <Avatar className="w-10 h-10 border border-gold/30">
+                        <AvatarFallback className="bg-gold/20 text-gold text-sm font-bold font-sans">
+                          {getInitials(user.full_name || 'U')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-white font-semibold text-sm truncate font-sans">{user.full_name}</p>
+                        <p className="text-white/50 text-[11px] truncate font-sans">{user.email}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link href={portalPath} onClick={() => setOpen(false)} className="w-full">
+                        <Button className="w-full h-11 bg-gold/15 hover:bg-gold/25 border border-gold/30 text-gold font-bold rounded-xl text-xs flex items-center justify-center gap-2">
+                          <LayoutDashboard className="w-3.5 h-3.5" />
+                          Dashboard
+                        </Button>
+                      </Link>
+                      <Link href={settingsPath} onClick={() => setOpen(false)} className="w-full">
+                        <Button className="w-full h-11 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 font-bold rounded-xl text-xs flex items-center justify-center gap-2">
+                          <Settings className="w-3.5 h-3.5" />
+                          Settings
+                        </Button>
+                      </Link>
+                    </div>
+
                     <Button
-                      variant="outline"
                       onClick={handleLogout}
-                      className="w-full h-11 border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-xl font-sans"
+                      variant="destructive"
+                      className="w-full h-11 rounded-xl text-xs font-bold font-sans flex items-center justify-center gap-2"
                     >
-                      <LogOut className="w-4 h-4 mr-2" />
+                      <LogOut className="w-4 h-4" />
                       Sign Out
                     </Button>
-                  </>
+                  </div>
                 ) : (
                   <>
                     {/* Not Logged in: High-contrast gold & premium styling to fix all light/dark theme white-on-white bugs */}
