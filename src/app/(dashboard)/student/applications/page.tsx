@@ -1,0 +1,119 @@
+'use client'
+
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { fadeUp, staggerContainer } from '@/lib/animations'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Progress } from '@/components/ui/progress'
+import { Plus, GraduationCap, Calendar, MapPin, ArrowRight, FileText, Clock } from 'lucide-react'
+
+const statusConfig: Record<string, { label: string; color: string }> = {
+  draft: { label: 'Draft', color: 'bg-gray-500/10 text-gray-500 border-gray-500/20' },
+  submitted: { label: 'Submitted', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
+  under_review: { label: 'Under Review', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
+  accepted: { label: 'Accepted', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
+  rejected: { label: 'Rejected', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
+  visa_applied: { label: 'Visa Applied', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' },
+  visa_approved: { label: 'Visa Approved', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
+}
+
+const mockApplications = [
+  {
+    id: '1', university: 'University of Manchester', program: 'MSc Computer Science',
+    status: 'under_review', progress: 60, intake: 'Sep 2026', location: 'Manchester, UK', submitted: '2 weeks ago',
+  },
+  {
+    id: '2', university: 'University of Leeds', program: 'MBA',
+    status: 'draft', progress: 20, intake: 'Jan 2027', location: 'Leeds, UK', submitted: null,
+  },
+  {
+    id: '3', university: 'University of Birmingham', program: 'MSc Data Science',
+    status: 'accepted', progress: 100, intake: 'Sep 2026', location: 'Birmingham, UK', submitted: '1 month ago',
+  },
+]
+
+export default function ApplicationsPage() {
+  const [tab, setTab] = useState('all')
+
+  const filtered = tab === 'all' ? mockApplications : mockApplications.filter((a) => a.status === tab)
+
+  return (
+    <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-6">
+      <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">My Applications</h1>
+          <p className="text-muted-foreground text-sm font-sans">Track and manage your university applications</p>
+        </div>
+        <Button className="bg-gold hover:bg-gold-dark text-navy rounded-xl font-sans">
+          <Plus className="w-4 h-4 mr-2" /> New Application
+        </Button>
+      </motion.div>
+
+      <motion.div variants={fadeUp}>
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="bg-muted/50 rounded-xl p-1 h-auto flex-wrap">
+            {['all', 'draft', 'submitted', 'under_review', 'accepted', 'rejected'].map((t) => (
+              <TabsTrigger key={t} value={t} className="rounded-lg capitalize text-xs font-sans">{t.replace('_', ' ')}</TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </motion.div>
+
+      <div className="space-y-4">
+        {filtered.length === 0 ? (
+          <motion.div variants={fadeUp}>
+            <Card className="border-dashed border-2 border-border">
+              <CardContent className="p-12 text-center">
+                <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2 font-sans">No Applications Found</h3>
+                <p className="text-muted-foreground text-sm font-sans mb-4">Start a new application to begin your journey</p>
+                <Button className="bg-gold hover:bg-gold-dark text-navy rounded-xl font-sans"><Plus className="w-4 h-4 mr-2" /> Start Application</Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : (
+          filtered.map((app) => (
+            <motion.div key={app.id} variants={fadeUp}>
+              <Card className="border-border/50 shadow-sm hover:shadow-premium transition-all duration-300 group cursor-pointer">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-navy/5 dark:bg-navy-light/20 flex items-center justify-center shrink-0">
+                      <GraduationCap className="w-6 h-6 text-navy dark:text-gold" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-bold text-foreground font-sans">{app.university}</h3>
+                          <p className="text-sm text-muted-foreground font-sans">{app.program}</p>
+                        </div>
+                        <Badge className={`${statusConfig[app.status]?.color} text-xs font-sans shrink-0`}>
+                          {statusConfig[app.status]?.label}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-muted-foreground font-sans">
+                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{app.location}</span>
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{app.intake}</span>
+                        {app.submitted && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Submitted {app.submitted}</span>}
+                      </div>
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-muted-foreground font-sans">Progress</span>
+                          <span className="font-medium text-foreground font-sans">{app.progress}%</span>
+                        </div>
+                        <Progress value={app.progress} className="h-1.5" />
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-gold transition-colors hidden md:block" />
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))
+        )}
+      </div>
+    </motion.div>
+  )
+}
