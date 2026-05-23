@@ -210,17 +210,19 @@ export default function Navbar() {
           ) : user ? (
             /* Logged in: Hide both buttons, show only PFP with dynamic dropdown */
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-11 px-2.5 rounded-xl hover:bg-white/5 flex items-center gap-2 border border-gold/20 shadow-gold bg-navy-light/10">
-                  <Avatar className="w-8 h-8 ring-2 ring-gold/40">
-                    <AvatarFallback className="bg-gold/20 text-gold text-xs font-bold font-sans">
-                      {getInitials(user.full_name || 'U')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-white font-medium text-xs font-sans">
-                    {user.full_name?.split(' ')[0] || 'User'}
-                  </span>
-                </Button>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" className="h-11 px-2.5 rounded-xl hover:bg-white/5 flex items-center gap-2 border border-gold/20 shadow-gold bg-navy-light/10" />
+                }
+              >
+                <Avatar className="w-8 h-8 ring-2 ring-gold/40">
+                  <AvatarFallback className="bg-gold/20 text-gold text-xs font-bold font-sans">
+                    {getInitials(user.full_name || 'U')}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-white font-medium text-xs font-sans">
+                  {user.full_name?.split(' ')[0] || 'User'}
+                </span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 rounded-xl border border-border shadow-premium bg-card text-foreground font-sans">
                 <DropdownMenuLabel className="font-sans">
