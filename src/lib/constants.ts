@@ -5,9 +5,9 @@ export const BRAND = {
   tagline: 'Study Abroad Consultants',
   description:
     'Pearls Uni Global Consultants is a premier and highly professional provider of education consultancy services in Pakistan, offering customer-oriented services that focus on individual care and personal attention to every student since 2008.',
-  phone: '+923446614448',
-  phone2: '+923461699225',
-  whatsapp: '923496601310',
+  phone: '+92 3446614448',
+  phone2: '+92 3461699225',
+  whatsapp: '92 3496601310',
   email: 'admissions@uniglobal.uk',
   address: 'Pearls Education City, Jhang Road, Bhowana, Chiniot, Pakistan',
   website: 'https://pearlsuniglobal.uk',
