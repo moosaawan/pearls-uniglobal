@@ -191,19 +191,6 @@ export default function LoginPage() {
         </form>
       </motion.div>
 
-      {/* Register Link */}
-      <motion.p
-        variants={fadeUp}
-        className="text-center text-sm text-muted-foreground"
-      >
-        Don&apos;t have an account?{' '}
-        <Link
-          href="/register"
-          className="text-gold font-semibold hover:text-gold-dark transition-colors"
-        >
-          Register
-        </Link>
-      </motion.p>
     </motion.div>
   )
 }

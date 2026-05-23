@@ -340,6 +340,15 @@ export default function FreeAssessmentPage() {
                       <h2 className="text-xl font-bold text-foreground mb-1 font-sans">Create Your Account</h2>
                       <p className="text-muted-foreground text-sm mb-6 font-sans">Create a password to access your application portal</p>
                       
+                      {/* Email display */}
+                      <div className="space-y-2">
+                        <Label>Email Address (Confirmed from Step 1)</Label>
+                        <div className="relative flex items-center bg-muted/50 border border-border/50 rounded-xl h-11 px-4 text-sm font-sans text-muted-foreground select-none">
+                          <Mail className="w-4 h-4 text-gold mr-3 shrink-0" />
+                          <span className="font-medium text-foreground truncate">{formData.email}</span>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="password">Password *</Label>
                         <div className="relative">
