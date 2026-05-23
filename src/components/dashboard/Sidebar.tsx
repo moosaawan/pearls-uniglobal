@@ -65,8 +65,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const { user } = useAuthStore()
 
   const getNavItems = () => {
-    // If student is pending/not approved, do not show any options in the sidebar
-    if (user?.role === 'student' && user?.account_status !== 'approved') {
+    // If user is pending/not approved, do not show any options in the sidebar for any role
+    if (user && user.account_status !== 'approved') {
       return []
     }
     if (pathname.startsWith('/admin')) return adminNav
