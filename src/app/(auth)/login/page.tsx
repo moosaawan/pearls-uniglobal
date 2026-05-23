@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, Loader2, ChevronDown, KeyRound } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -21,12 +21,10 @@ export default function LoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [showDemo, setShowDemo] = useState(false)
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -77,15 +75,6 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const handleDemoLogin = () => {
-    setValue('email', 'admin@pearlsuniglobal.uk')
-    setValue('password', 'admin123456')
-    // Small delay to let form values update, then submit
-    setTimeout(() => {
-      handleSubmit(onSubmit)()
-    }, 100)
   }
 
   return (
@@ -215,63 +204,6 @@ export default function LoginPage() {
           Register
         </Link>
       </motion.p>
-
-      {/* Test Admin Login */}
-      <motion.div variants={fadeUp}>
-        <button
-          type="button"
-          onClick={() => setShowDemo(!showDemo)}
-          className="w-full flex items-center justify-center gap-2 text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors py-2"
-        >
-          <KeyRound className="w-3 h-3" />
-          <span>Demo Access</span>
-          <ChevronDown className={cn('w-3 h-3 transition-transform', showDemo && 'rotate-180')} />
-        </button>
-        <AnimatePresence>
-          {showDemo && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="border border-dashed border-border/50 rounded-xl p-4 space-y-3 mt-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50 bg-muted/50 px-2 py-0.5 rounded-full">
-                    Demo Access
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground/60">
-                    <span className="font-medium">Email:</span> admin@pearlsuniglobal.uk
-                  </p>
-                  <p className="text-xs text-muted-foreground/60">
-                    <span className="font-medium">Password:</span> admin123456
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDemoLogin}
-                  disabled={isLoading}
-                  className="w-full h-9 rounded-lg text-xs font-medium border-dashed"
-                >
-                  {isLoading ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Signing in...
-                    </span>
-                  ) : (
-                    'Login as Test Admin'
-                  )}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
     </motion.div>
   )
 }

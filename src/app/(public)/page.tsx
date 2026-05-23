@@ -6,6 +6,7 @@ import { fadeUp, staggerContainer } from '@/lib/animations'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
+import { useAuthStore } from '@/stores/authStore'
 import {
   GraduationCap, ArrowRight, MessageCircle, Star, MapPin, Users,
   CheckCircle, Shield, BookOpen, FileText, Stethoscope, Award,
@@ -73,6 +74,17 @@ const faqs = [
 
 /* ========== MAIN HOMEPAGE ========== */
 export default function HomePage() {
+  const { user } = useAuthStore()
+
+  const getPortalPath = () => {
+    if (!user) return '/login'
+    if (user.role === 'admin' || user.role === 'super_admin') return '/admin'
+    if (user.role === 'staff') return '/staff'
+    return '/student'
+  }
+
+  const portalPath = getPortalPath()
+
   return (
     <div className="min-h-screen">
       {/* ===== HERO SECTION ===== */}
@@ -125,16 +137,29 @@ export default function HomePage() {
                 variants={fadeUp}
                 className="flex flex-wrap gap-4"
               >
-                <Button
-                  size="lg"
-                  asChild
-                  className="bg-gold hover:bg-gold-dark text-navy font-bold rounded-xl h-13 px-8 shadow-gold text-base font-sans"
-                >
-                  <Link href="/free-assessment">
-                    Book Free Consultation
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Link>
-                </Button>
+                {user ? (
+                  <Button
+                    size="lg"
+                    asChild
+                    className="bg-gold hover:bg-gold-dark text-navy font-bold rounded-xl h-13 px-8 shadow-gold text-base font-sans"
+                  >
+                    <Link href={portalPath}>
+                      Go to Portal Dashboard
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    asChild
+                    className="bg-gold hover:bg-gold-dark text-navy font-bold rounded-xl h-13 px-8 shadow-gold text-base font-sans"
+                  >
+                    <Link href="/free-assessment">
+                      Book Free Consultation
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                  </Button>
+                )}
                 <Button
                   size="lg"
                   asChild
@@ -529,15 +554,27 @@ export default function HomePage() {
             Book a free consultation with our expert counselors today.
           </motion.p>
           <motion.div variants={fadeUp} className="flex flex-wrap gap-4 justify-center">
-            <Button
-              size="lg"
-              asChild
-              className="bg-gold hover:bg-gold-dark text-navy font-bold rounded-xl h-13 px-8 shadow-gold text-base font-sans"
-            >
-              <Link href="/free-assessment">
-                Start Free Assessment <ArrowRight className="w-4 h-4 ml-2" />
-              </Link>
-            </Button>
+            {user ? (
+              <Button
+                size="lg"
+                asChild
+                className="bg-gold hover:bg-gold-dark text-navy font-bold rounded-xl h-13 px-8 shadow-gold text-base font-sans"
+              >
+                <Link href={portalPath}>
+                  Go to Portal Dashboard <ArrowRight className="w-4 h-4 ml-2" />
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                asChild
+                className="bg-gold hover:bg-gold-dark text-navy font-bold rounded-xl h-13 px-8 shadow-gold text-base font-sans"
+              >
+                <Link href="/free-assessment">
+                  Start Free Assessment <ArrowRight className="w-4 h-4 ml-2" />
+                </Link>
+              </Button>
+            )}
             <Button
               size="lg"
               asChild

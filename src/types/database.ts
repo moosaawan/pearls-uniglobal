@@ -9,6 +9,7 @@ export interface Profile {
   whatsapp: string | null
   avatar_url: string | null
   role: UserRole
+  account_status: 'pending' | 'approved' | 'rejected'
   email_verified: boolean
   last_name_change: string | null
   created_at: string

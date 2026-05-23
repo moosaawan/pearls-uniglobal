@@ -18,8 +18,8 @@ export const registerSchema = z
       .string()
       .min(8, 'Password must be at least 8 characters')
       .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/,
+        'Password must contain 1 uppercase, 1 lowercase, 1 number, and 1 special character (!@#$%^&*)'
       ),
     confirmPassword: z.string(),
     phone: z.string().optional(),
@@ -39,8 +39,8 @@ export const resetPasswordSchema = z
       .string()
       .min(8, 'Password must be at least 8 characters')
       .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/,
+        'Password must contain 1 uppercase, 1 lowercase, 1 number, and 1 special character (!@#$%^&*)'
       ),
     confirmPassword: z.string(),
   })

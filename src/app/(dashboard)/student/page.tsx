@@ -11,8 +11,11 @@ import Link from 'next/link'
 import {
   FileText, FolderOpen, GraduationCap, Calendar,
   Clock, ArrowRight, Upload, BookOpen, Plus, Bell,
-  CheckCircle, AlertCircle, TrendingUp,
+  CheckCircle, AlertCircle, TrendingUp, Sparkles, LogOut
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 const quickActions = [
   { icon: Plus, label: 'New Application', href: '/student/applications', color: 'bg-blue-500/10 text-blue-500' },
@@ -29,7 +32,120 @@ const recentActivity = [
 ]
 
 export default function StudentDashboard() {
-  const { user } = useAuthStore()
+  const { user, setUser } = useAuthStore()
+  const router = useRouter()
+  const [realtimeStatus, setRealtimeStatus] = useState<string | null>(null)
+
+  // Real-time listener for status changes
+  useEffect(() => {
+    if (!user) return
+    
+    setRealtimeStatus(user.account_status)
+    const supabase = createClient()
+
+    const channel = supabase
+      .channel('profile_status_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updatedProfile = payload.new
+          if (updatedProfile) {
+            setUser(updatedProfile as any)
+            setRealtimeStatus(updatedProfile.account_status)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user, setUser])
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
+  const isPending = realtimeStatus !== 'approved'
+
+  if (isPending) {
+    return (
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+        className="min-h-[80vh] flex items-center justify-center p-4"
+      >
+        <motion.div variants={fadeUp} className="max-w-xl w-full">
+          <Card className="border border-gold/20 bg-gradient-to-b from-navy/5 to-navy/40 dark:from-navy/30 dark:to-navy/90 shadow-premium overflow-hidden rounded-3xl relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gold/5 rounded-full blur-3xl -z-10" />
+            <CardContent className="p-8 md:p-12 text-center space-y-6">
+              {/* Spinning / Pulsing Icon */}
+              <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 bg-gold/10 rounded-full animate-ping" />
+                <div className="w-20 h-20 bg-gold/20 rounded-full flex items-center justify-center border border-gold/40 relative z-10 shadow-gold">
+                  <Clock className="w-10 h-10 text-gold animate-pulse" />
+                </div>
+              </div>
+
+              {/* Title & Status */}
+              <div className="space-y-3">
+                <Badge className="bg-gold/20 text-gold hover:bg-gold/20 border-gold/30 px-3 py-1 font-sans text-xs uppercase tracking-wider">
+                  Status: Pending Approval
+                </Badge>
+                <h1 className="text-3xl font-extrabold text-foreground tracking-tight font-sans">
+                  Application Under Review
+                </h1>
+                <p className="text-muted-foreground font-sans text-base leading-relaxed max-w-md mx-auto">
+                  Hi <span className="text-gold font-semibold">{user?.full_name || 'there'}</span>! Your student profile is currently being reviewed by our expert visa & academic consultants.
+                </p>
+              </div>
+
+              {/* Info box */}
+              <div className="bg-muted/40 border border-border/50 rounded-2xl p-6 text-left space-y-4 max-w-md mx-auto">
+                <div className="flex gap-3">
+                  <Sparkles className="w-5 h-5 text-gold shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-sm text-foreground font-sans">What happens next?</h4>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed font-sans">
+                      Our administrative team will verify your academic qualification, preferences, and details. Once approved, your premium personalized dashboard options will unlock in real time.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-sm text-foreground font-sans">Average review time</h4>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed font-sans">
+                      We typically review and approve student accounts within 2 to 4 hours. Stay tuned!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 items-center justify-center pt-4">
+                <Button asChild className="bg-gold hover:bg-gold-dark text-navy font-semibold rounded-xl h-12 px-8 font-sans w-full sm:w-auto shadow-gold">
+                  <a href="/">Go to Homepage</a>
+                </Button>
+                <Button variant="outline" onClick={handleLogout} className="rounded-xl h-12 px-6 font-sans border-dashed w-full sm:w-auto">
+                  <LogOut className="w-4 h-4 mr-2" /> Log Out
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
