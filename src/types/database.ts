@@ -1,17 +1,51 @@
-// User & Auth Types
+// ============================================
+// ENUMS & TYPES
+// ============================================
+
 export type UserRole = 'student' | 'staff' | 'admin' | 'super_admin'
+export type AccountStatus = 'pending' | 'approved' | 'rejected'
+export type ApplicationStatus =
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'accepted'
+  | 'rejected'
+  | 'visa_applied'
+  | 'visa_approved'
+  | 'visa_rejected'
+  | 'enrolled'
+export type DocumentType =
+  | 'passport'
+  | 'transcript'
+  | 'degree'
+  | 'ielts_result'
+  | 'sop'
+  | 'recommendation'
+  | 'cv'
+  | 'financial'
+  | 'photo'
+  | 'other'
+export type DocumentStatus = 'pending' | 'verified' | 'rejected' | 'needs_reupload'
+export type ConsultationStatus = 'scheduled' | 'completed' | 'cancelled' | 'rescheduled'
+export type TicketStatus = 'open' | 'in_progress' | 'waiting_customer' | 'resolved' | 'closed'
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded'
+
+// ============================================
+// USER & PROFILE
+// ============================================
 
 export interface Profile {
   id: string
   email: string
-  full_name: string
+  full_name: string | null
   phone: string | null
   whatsapp: string | null
   avatar_url: string | null
   role: UserRole
-  account_status: 'pending' | 'approved' | 'rejected'
+  account_status: AccountStatus
   email_verified: boolean
   last_name_change: string | null
+  is_active: boolean
   created_at: string
   updated_at: string
 }
@@ -37,40 +71,31 @@ export interface StudentProfile {
   profile_completion: number
   created_at: string
   updated_at: string
+  profile?: Profile
 }
 
-// Application Types
-export type ApplicationStatus =
-  | 'draft'
-  | 'submitted'
-  | 'under_review'
-  | 'accepted'
-  | 'rejected'
-  | 'visa_applied'
-  | 'visa_approved'
-  | 'visa_rejected'
-  | 'enrolled'
-
-export interface Application {
+export interface StaffProfile {
   id: string
   user_id: string
-  university_id: string
-  program_name: string
-  status: ApplicationStatus
-  stage: string
-  counselor_notes: string | null
-  submitted_at: string | null
-  decided_at: string | null
+  specialization: string | null
+  bio: string | null
+  assigned_students_count: number
+  commission_rate: number | null
+  is_active: boolean
   created_at: string
   updated_at: string
-  university?: University
+  profile?: Profile
 }
+
+// ============================================
+// UNIVERSITIES
+// ============================================
 
 export interface University {
   id: string
   name: string
   country: string
-  city: string
+  city: string | null
   ranking: number | null
   logo_url: string | null
   website_url: string | null
@@ -79,34 +104,245 @@ export interface University {
   tuition_range: string | null
   has_scholarships: boolean
   featured: boolean
+  is_active: boolean
   created_at: string
   updated_at: string
 }
 
-// Document Types
-export type DocumentType =
-  | 'passport'
-  | 'transcript'
-  | 'degree'
-  | 'ielts_result'
-  | 'sop'
-  | 'recommendation'
-  | 'cv'
-  | 'financial'
-  | 'photo'
-  | 'other'
+// ============================================
+// APPLICATIONS
+// ============================================
+
+export interface Application {
+  id: string
+  user_id: string
+  university_id: string
+  program_name: string
+  status: ApplicationStatus
+  stage: string | null
+  counselor_id: string | null
+  counselor_notes: string | null
+  submitted_at: string | null
+  decided_at: string | null
+  offer_letter_url: string | null
+  cas_number: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  university?: University
+  counselor?: Profile
+}
+
+// ============================================
+// DOCUMENTS
+// ============================================
 
 export interface Document {
   id: string
   user_id: string
-  application_id: string | null
-  name: string
-  type: DocumentType
+  document_type: DocumentType
   file_url: string
-  file_size: number
-  mime_type: string
-  folder: string
-  verified: boolean
+  file_name: string | null
+  file_size: number | null
+  mime_type: string | null
+  status: DocumentStatus
+  verified_by: string | null
+  rejection_reason: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  profile?: Profile
+  verified_by_user?: Profile
+}
+
+// ============================================
+// CONSULTATIONS
+// ============================================
+
+export interface Consultation {
+  id: string
+  student_id: string
+  staff_id: string
+  title: string | null
+  description: string | null
+  scheduled_at: string
+  duration_minutes: number
+  status: ConsultationStatus
+  meeting_url: string | null
+  meeting_type: string | null
+  notes: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  student?: Profile
+  staff?: Profile
+}
+
+// ============================================
+// TICKETS & SUPPORT
+// ============================================
+
+export interface Ticket {
+  id: string
+  user_id: string
+  assigned_to: string | null
+  subject: string
+  description: string
+  status: TicketStatus
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  category: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  user?: Profile
+  assigned_user?: Profile
+}
+
+export interface TicketReply {
+  id: string
+  ticket_id: string
+  user_id: string
+  message: string
+  attachments: string[] | null
+  is_internal: boolean
+  created_at: string
+  updated_at: string
+  user?: Profile
+  ticket?: Ticket
+}
+
+// ============================================
+// MESSAGES & CONVERSATIONS
+// ============================================
+
+export interface Conversation {
+  id: string
+  participant_ids: string[]
+  title: string | null
+  is_group: boolean
+  last_message_at: string | null
+  created_at: string
+  updated_at: string
+  participants?: Profile[]
+  last_message?: Message
+}
+
+export interface Message {
+  id: string
+  conversation_id: string
+  sender_id: string
+  content: string
+  attachments: string[] | null
+  is_read: boolean
+  created_at: string
+  sender?: Profile
+  conversation?: Conversation
+}
+
+// ============================================
+// PAYMENTS & INVOICES
+// ============================================
+
+export interface Payment {
+  id: string
+  user_id: string
+  amount: number
+  currency: string
+  description: string | null
+  payment_method: string | null
+  status: PaymentStatus
+  transaction_id: string | null
+  paid_at: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  user?: Profile
+}
+
+export interface Invoice {
+  id: string
+  user_id: string
+  payment_id: string | null
+  invoice_number: string
+  amount: number
+  description: string | null
+  due_date: string | null
+  issued_date: string
+  status: 'draft' | 'sent' | 'paid' | 'overdue'
+  pdf_url: string | null
+  created_at: string
+  updated_at: string
+  user?: Profile
+  payment?: Payment
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+export interface Notification {
+  id: string
+  user_id: string
+  title: string
+  message: string
+  type: string | null
+  related_to: string | null
+  related_id: string | null
+  is_read: boolean
+  action_url: string | null
+  created_at: string
+  user?: Profile
+}
+
+// ============================================
+// ACTIVITY LOGS
+// ============================================
+
+export interface ActivityLog {
+  id: string
+  user_id: string | null
+  action: string
+  entity_type: string | null
+  entity_id: string | null
+  changes: Record<string, any> | null
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+  user?: Profile
+}
+
+// ============================================
+// LEADS & CRM
+// ============================================
+
+export interface Lead {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  country: string | null
+  desired_degree: string | null
+  source: string | null
+  status: 'new' | 'contacted' | 'qualified' | 'converted' | 'lost'
+  assigned_to: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+  assigned_user?: Profile
+}
+
+// ============================================
+// SETTINGS
+// ============================================
+
+export interface Settings {
+  id: string
+  key: string
+  value: Record<string, any> | null
+  description: string | null
+  created_at: string
+  updated_at: string
+}
   verified_by: string | null
   verified_at: string | null
   created_at: string

@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { fadeUp, staggerContainer } from '@/lib/animations'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { useAuthStore } from '@/stores/authStore'
+import { createClient } from '@/lib/supabase/client'
 import {
   HeadphonesIcon, MessageSquare, Plus, CheckCircle, Clock, AlertCircle, FileText,
   Search, ShieldQuestion, HelpCircle, ArrowRight
@@ -17,70 +19,84 @@ const priorityConfig: Record<string, { label: string; color: string }> = {
   low: { label: 'Low', color: 'bg-gray-500/10 text-gray-500 border-gray-500/20' },
   medium: { label: 'Medium', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
   high: { label: 'High', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
+  urgent: { label: 'Urgent', color: 'bg-rose-500/10 text-rose-500 border-rose-500/20' },
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
-  OPEN: { label: 'Open', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
-  IN_PROGRESS: { label: 'In Progress', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
-  RESOLVED: { label: 'Resolved', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
+  open: { label: 'Open', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
+  in_progress: { label: 'In Progress', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
+  waiting: { label: 'Waiting', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+  resolved: { label: 'Resolved', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
+  closed: { label: 'Closed', color: 'bg-gray-500/10 text-gray-500 border-gray-500/20' },
 }
 
 export default function SupportPage() {
+  const { user } = useAuthStore()
   const [showCreate, setShowCreate] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadingHistory, setLoadingHistory] = useState(true)
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
+  const [tickets, setTickets] = useState<any[]>([])
 
-  const [tickets, setTickets] = useState([
-    {
-      id: 'tkt-1',
-      subject: 'IELTS score submission query',
-      description: 'Can I upload my academic transcripts now and send my IELTS result later when it arrives?',
-      status: 'RESOLVED',
-      priority: 'low',
-      createdAt: 'May 18, 2026',
-      replies: [
-        {
-          author: 'Sarah Ahmed (Senior Counselor)',
-          text: 'Yes, absolutely. Most UK universities will issue a conditional offer letter based on your academic transcripts. You can upload your IELTS results later to convert it to an unconditional offer.',
-          time: '3 hours later',
-        },
-      ],
-    },
-    {
-      id: 'tkt-2',
-      subject: 'CAS Deposit and refund policy',
-      description: 'What is the minimum CAS deposit required for University of Birmingham, and is it refundable if the visa is refused?',
-      status: 'IN_PROGRESS',
-      priority: 'high',
-      createdAt: 'May 21, 2026',
-      replies: [],
-    },
-  ])
+  const fetchTickets = async () => {
+    if (!user) return
+    setLoadingHistory(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .select('*, assigned_user:profiles!assigned_to(*)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
 
-  const handleCreate = (e: React.FormEvent) => {
+      if (error) throw error
+      setTickets(data || [])
+    } catch (err) {
+      console.error('Error fetching tickets:', err)
+      toast.error('Failed to load support tickets.')
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTickets()
+  }, [user])
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) return
     setLoading(true)
 
-    setTimeout(() => {
-      const newTkt = {
-        id: `tkt-${Date.now()}`,
-        subject,
-        description,
-        status: 'OPEN',
-        priority,
-        createdAt: 'Just now',
-        replies: [],
-      }
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('support_tickets')
+        .insert([
+          {
+            user_id: user.id,
+            subject,
+            description,
+            priority,
+            status: 'open',
+          },
+        ])
 
-      setTickets([newTkt, ...tickets])
-      setLoading(false)
+      if (error) throw error
+
+      toast.success('Support ticket created successfully! A consultant will respond shortly.')
       setShowCreate(false)
       setSubject('')
       setDescription('')
-      toast.success('Support ticket created successfully! A consultant will respond shortly.')
-    }, 1200)
+      fetchTickets()
+    } catch (err) {
+      console.error('Error creating ticket:', err)
+      toast.error('Failed to submit ticket. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -105,7 +121,7 @@ export default function SupportPage() {
       <div className="grid lg:grid-cols-3 gap-6 items-start">
         {/* Main List */}
         <div className="lg:col-span-2 space-y-4">
-          {showCreate ? (
+          {showCreate && (
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
               <Card className="border-border/50 shadow-premium">
                 <CardHeader>
@@ -134,7 +150,7 @@ export default function SupportPage() {
                       >
                         <option value="low">Low - General query</option>
                         <option value="medium">Medium - Application problem</option>
-                        <option value="high">High - Urgent (Visa, payment deadine)</option>
+                        <option value="high">High - Urgent (Visa, payment deadline)</option>
                       </select>
                     </div>
 
@@ -143,7 +159,7 @@ export default function SupportPage() {
                       <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Please details your issue or questions so that our counselors can help you efficiently..."
+                        placeholder="Please detail your issue or questions so that our counselors can help you efficiently..."
                         className="w-full min-h-[120px] p-3 border border-border/50 rounded-xl bg-background outline-none text-sm focus:border-gold"
                         required
                       />
@@ -170,13 +186,18 @@ export default function SupportPage() {
                 </CardContent>
               </Card>
             </motion.div>
-          ) : null}
+          )}
 
           <div className="space-y-4">
             <h3 className="font-semibold text-sm font-sans tracking-wide text-foreground flex items-center gap-2">
               Support History
             </h3>
-            {tickets.length === 0 ? (
+            {loadingHistory ? (
+              <div className="text-center py-12 text-sm text-muted-foreground">
+                <Clock className="w-8 h-8 animate-spin mx-auto text-gold mb-2" />
+                Loading your support history...
+              </div>
+            ) : tickets.length === 0 ? (
               <Card className="border-dashed border-2 border-border/40 text-center py-12">
                 <CardContent>
                   <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
@@ -190,14 +211,16 @@ export default function SupportPage() {
                     <CardContent className="p-5 space-y-4 font-sans text-sm">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge className={`text-[10px] uppercase font-bold py-0.5 px-2 font-sans ${priorityConfig[tkt.priority]?.color}`}>
-                            {priorityConfig[tkt.priority]?.label} Priority
+                          <Badge className={`text-[10px] uppercase font-bold py-0.5 px-2 font-sans ${priorityConfig[tkt.priority]?.color || ''}`}>
+                            {priorityConfig[tkt.priority]?.label || tkt.priority} Priority
                           </Badge>
-                          <Badge className={`text-[10px] py-0.5 px-2 font-sans ${statusConfig[tkt.status]?.color}`}>
-                            {statusConfig[tkt.status]?.label}
+                          <Badge className={`text-[10px] py-0.5 px-2 font-sans ${statusConfig[tkt.status]?.color || ''}`}>
+                            {statusConfig[tkt.status]?.label || tkt.status}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{tkt.createdAt}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(tkt.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
                       </div>
 
                       <div className="space-y-1">
@@ -205,22 +228,26 @@ export default function SupportPage() {
                         <p className="text-xs text-muted-foreground leading-relaxed pt-0.5">{tkt.description}</p>
                       </div>
 
-                      {tkt.replies.length > 0 && (
+                      {tkt.assigned_user && (
                         <div className="bg-muted/30 border border-border/20 rounded-xl p-3.5 space-y-2">
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-bold text-xs text-gold flex items-center gap-1">
-                              <CheckCircle className="w-3.5 h-3.5 text-green-500" /> Response from {tkt.replies[0].author}
+                              <CheckCircle className="w-3.5 h-3.5 text-green-500" /> Counselor Assigned
                             </span>
-                            <span className="text-[10px] text-muted-foreground">{tkt.replies[0].time}</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              Active Case
+                            </span>
                           </div>
-                          <p className="text-xs text-foreground/80 leading-relaxed font-sans">{tkt.replies[0].text}</p>
+                          <p className="text-xs text-foreground/80 leading-relaxed font-sans">
+                            Your support ticket is assigned to counselor <strong>{tkt.assigned_user.full_name}</strong> ({tkt.assigned_user.email}). They will coordinate with the respective department and update you right here.
+                          </p>
                         </div>
                       )}
 
-                      {tkt.status !== 'RESOLVED' && tkt.replies.length === 0 && (
+                      {tkt.status !== 'resolved' && !tkt.assigned_user && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5 bg-yellow-500/5 border border-yellow-500/10 rounded-lg p-2.5">
                           <Clock className="w-4 h-4 text-yellow-600 shrink-0" />
-                          <span>Our team is actively reviewing your query. Response will be posted here.</span>
+                          <span>Our team is actively reviewing your query. A senior counselor will respond here shortly.</span>
                         </p>
                       )}
                     </CardContent>

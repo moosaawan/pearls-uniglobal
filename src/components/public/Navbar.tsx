@@ -230,17 +230,21 @@ export default function Navbar() {
                   <p className="text-[11px] text-muted-foreground font-normal truncate mt-0.5">{user.email}</p>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="font-sans cursor-pointer focus:bg-gold/10 focus:text-gold">
-                  <Link href={portalPath} className="flex items-center gap-2.5 w-full">
-                    <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
-                  </Link>
+                <DropdownMenuItem
+                  render={
+                    <Link href={portalPath} className="flex items-center gap-2.5 w-full font-sans cursor-pointer focus:bg-gold/10 focus:text-gold" />
+                  }
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="font-sans cursor-pointer focus:bg-gold/10 focus:text-gold">
-                  <Link href={settingsPath} className="flex items-center gap-2.5 w-full">
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </Link>
+                <DropdownMenuItem
+                  render={
+                    <Link href={settingsPath} className="flex items-center gap-2.5 w-full font-sans cursor-pointer focus:bg-gold/10 focus:text-gold" />
+                  }
+                >
+                  <Settings className="w-4 h-4" />
+                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-red-500 font-sans cursor-pointer focus:bg-red-500/10 focus:text-red-500">
@@ -312,19 +316,22 @@ export default function Navbar() {
                   {NAV_LINKS.map((link) => {
                     const isActive = pathname === link.href
                     return (
-                      <SheetClose key={link.href} asChild>
-                        <Link
-                          href={link.href}
-                          onClick={() => setOpen(false)}
-                          className={cn(
-                            'flex items-center px-6 py-3.5 text-[15px] font-medium transition-all duration-200',
-                            isActive
-                              ? 'text-gold bg-gold/5 border-r-2 border-gold'
-                              : 'text-white/75 hover:text-white hover:bg-white/5'
-                          )}
-                        >
-                          {link.label}
-                        </Link>
+                      <SheetClose
+                        key={link.href}
+                        render={
+                          <Link
+                            href={link.href}
+                            onClick={() => setOpen(false)}
+                            className={cn(
+                              'flex items-center px-6 py-3.5 text-[15px] font-medium transition-all duration-200',
+                              isActive
+                                ? 'text-gold bg-gold/5 border-r-2 border-gold'
+                                : 'text-white/75 hover:text-white hover:bg-white/5'
+                            )}
+                          />
+                        }
+                      >
+                        {link.label}
                       </SheetClose>
                     )
                   })}

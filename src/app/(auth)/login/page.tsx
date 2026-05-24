@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2, Sparkles } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { loginSchema, type LoginFormData } from '@/lib/validations'
 import { createClient } from '@/lib/supabase/client'
 import { fadeUp, staggerContainer } from '@/lib/animations'
@@ -25,6 +26,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -33,6 +35,18 @@ export default function LoginPage() {
       password: '',
     },
   })
+
+  const [showDemo, setShowDemo] = useState(false)
+
+  const handleQuickLogin = (emailVal: string, passVal: string) => {
+    setValue('email', emailVal)
+    setValue('password', passVal)
+    
+    // Defer form submission slightly to let setValue register
+    setTimeout(() => {
+      handleSubmit(onSubmit)()
+    }, 150)
+  }
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
@@ -189,6 +203,59 @@ export default function LoginPage() {
             )}
           </Button>
         </form>
+      </motion.div>
+
+      {/* Demo Credentials Panel */}
+      <motion.div
+        variants={fadeUp}
+        className="rounded-2xl border border-dashed border-gold/30 bg-gold/5 p-5 text-center font-sans"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-gold flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5" /> Demo Portals Access
+          </span>
+          <Button
+            variant="ghost"
+            onClick={() => setShowDemo(!showDemo)}
+            className="h-7 text-xs text-muted-foreground hover:text-gold hover:bg-white/5 px-2 rounded-lg"
+          >
+            {showDemo ? 'Hide Portals' : 'Select Portal'}
+          </Button>
+        </div>
+        
+        {showDemo && (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-1 gap-2 pt-2 text-left">
+            <div className="p-3 rounded-xl bg-card border border-border/50 hover:border-gold/30 transition-all cursor-pointer flex justify-between items-center group"
+              onClick={() => handleQuickLogin('moosa@gmail.com', '123456')}
+            >
+              <div>
+                <p className="text-xs font-bold text-foreground group-hover:text-gold transition-colors">Super Admin Portal</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">moosa@gmail.com / 123456</p>
+              </div>
+              <Badge className="bg-red-500/10 text-red-500 border-none hover:bg-red-500/10 text-[9px] uppercase font-bold py-0.5">Super Admin</Badge>
+            </div>
+
+            <div className="p-3 rounded-xl bg-card border border-border/50 hover:border-gold/30 transition-all cursor-pointer flex justify-between items-center group"
+              onClick={() => handleQuickLogin('sarah@pearlsuniglobal.uk', 'admin123456')}
+            >
+              <div>
+                <p className="text-xs font-bold text-foreground group-hover:text-gold transition-colors">Counseling Staff Portal</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">sarah@pearlsuniglobal.uk / admin123456</p>
+              </div>
+              <Badge className="bg-yellow-500/10 text-yellow-600 border-none hover:bg-yellow-500/10 text-[9px] uppercase font-bold py-0.5">Staff Office</Badge>
+            </div>
+
+            <div className="p-3 rounded-xl bg-card border border-border/50 hover:border-gold/30 transition-all cursor-pointer flex justify-between items-center group"
+              onClick={() => handleQuickLogin('student1@gmail.com', 'admin123456')}
+            >
+              <div>
+                <p className="text-xs font-bold text-foreground group-hover:text-gold transition-colors">Student Portal</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">student1@gmail.com / admin123456</p>
+              </div>
+              <Badge className="bg-blue-500/10 text-blue-500 border-none hover:bg-blue-500/10 text-[9px] uppercase font-bold py-0.5">Client Student</Badge>
+            </div>
+          </motion.div>
+        )}
       </motion.div>
 
     </motion.div>

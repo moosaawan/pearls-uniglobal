@@ -16,19 +16,13 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { APPLICATION_STATUS_CONFIG } from '@/lib/constants'
 
 const quickActions = [
   { icon: Plus, label: 'New Application', href: '/student/applications', color: 'bg-blue-500/10 text-blue-500' },
   { icon: Upload, label: 'Upload Document', href: '/student/documents', color: 'bg-green-500/10 text-green-500' },
   { icon: Calendar, label: 'Book Appointment', href: '/student/appointments', color: 'bg-purple-500/10 text-purple-500' },
   { icon: BookOpen, label: 'IELTS Resources', href: '/student/ielts', color: 'bg-orange-500/10 text-orange-500' },
-]
-
-const recentActivity = [
-  { icon: CheckCircle, text: 'Profile assessment completed', time: '2 hours ago', color: 'text-green-500' },
-  { icon: FileText, text: 'Application to University of Manchester submitted', time: '1 day ago', color: 'text-blue-500' },
-  { icon: Upload, text: 'Passport copy uploaded', time: '2 days ago', color: 'text-purple-500' },
-  { icon: Bell, text: 'Welcome to Pearls UniGlobal!', time: '3 days ago', color: 'text-gold' },
 ]
 
 export default function StudentDashboard() {
@@ -41,6 +35,8 @@ export default function StudentDashboard() {
     universities: 5,
     appointments: 0,
   })
+  const [applications, setApplications] = useState<any[]>([])
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
 
   // Real-time listener for status changes
   useEffect(() => {
@@ -48,7 +44,7 @@ export default function StudentDashboard() {
     
     setRealtimeStatus(user.account_status)
     const supabase = createClient()
-
+ 
     const channel = supabase
       .channel('profile_status_changes')
       .on(
@@ -68,16 +64,16 @@ export default function StudentDashboard() {
         }
       )
       .subscribe()
-
+ 
     return () => {
       supabase.removeChannel(channel)
     }
   }, [user, setUser])
-
-  // Fetch student stats
+ 
+  // Fetch student stats and applications
   useEffect(() => {
     if (!user) return
-
+ 
     const fetchStudentStats = async () => {
       try {
         const supabase = createClient()
@@ -87,30 +83,78 @@ export default function StudentDashboard() {
           .from('applications')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-
+ 
         // 2. Documents Count
         const { count: docCount } = await supabase
           .from('documents')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
-
+ 
         // 3. Appointments Count
         const { count: aptCount } = await supabase
           .from('appointments')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
 
+        // 4. Applications List joined with universities
+        const { data: appsData } = await supabase
+          .from('applications')
+          .select('*, university:universities(*)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        // 5. Activity logs (recent events)
+        const { data: logsData } = await supabase
+          .from('activity_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(4)
+ 
         setCounts({
           applications: appCount || 0,
           documents: docCount || 0,
           universities: 5, // premium default
           appointments: aptCount || 0,
         })
+
+        if (appsData) {
+          setApplications(appsData)
+        }
+
+        if (logsData && logsData.length > 0) {
+          const mappedLogs = logsData.map(log => {
+            let icon = Bell
+            let color = 'text-gold'
+            if (log.action.toLowerCase().includes('document') || log.action.toLowerCase().includes('upload')) {
+              icon = Upload
+              color = 'text-purple-500'
+            } else if (log.action.toLowerCase().includes('application') || log.action.toLowerCase().includes('submit')) {
+              icon = FileText
+              color = 'text-blue-500'
+            } else if (log.action.toLowerCase().includes('profile') || log.action.toLowerCase().includes('complete') || log.action.toLowerCase().includes('approve')) {
+              icon = CheckCircle
+              color = 'text-green-500'
+            }
+            return {
+              icon,
+              text: log.action,
+              time: new Date(log.created_at).toLocaleDateString(),
+              color
+            }
+          })
+          setRecentActivity(mappedLogs)
+        } else {
+          setRecentActivity([
+            { icon: CheckCircle, text: 'Profile assessment completed', time: 'Recently', color: 'text-green-500' },
+            { icon: Bell, text: 'Welcome to Pearls UniGlobal!', time: 'Recently', color: 'text-gold' }
+          ])
+        }
       } catch {
         // keep defaults
       }
     }
-
+ 
     fetchStudentStats()
   }, [user])
 
@@ -345,24 +389,54 @@ export default function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="p-4 bg-muted/50 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-sm font-sans">University of Manchester</h4>
-                    <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-xs font-sans">Under Review</Badge>
+                {applications.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground text-xs font-sans">No applications found.</p>
+                    <Link href="/student/applications" className="text-gold text-xs font-sans mt-2 inline-block hover:underline">
+                      Start your first application
+                    </Link>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3 font-sans">MSc Computer Science • Sep 2026</p>
-                  <Progress value={60} className="h-1.5" />
-                  <p className="text-xs text-muted-foreground mt-2 font-sans">Step 3 of 5: Document verification</p>
-                </div>
-                <div className="p-4 bg-muted/50 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-sm font-sans">University of Leeds</h4>
-                    <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-xs font-sans">Draft</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-3 font-sans">MBA • Jan 2027</p>
-                  <Progress value={20} className="h-1.5" />
-                  <p className="text-xs text-muted-foreground mt-2 font-sans">Step 1 of 5: Personal information</p>
-                </div>
+                ) : (
+                  applications.slice(0, 2).map((app, idx) => {
+                    const statusVal = app.status || 'draft';
+                    const config = APPLICATION_STATUS_CONFIG[statusVal as keyof typeof APPLICATION_STATUS_CONFIG] || { label: statusVal, color: 'gray' };
+                    
+                    // Determine step value based on status
+                    let stepText = 'Step 1 of 5: Personal information';
+                    let progressVal = 20;
+                    if (statusVal === 'submitted') {
+                      stepText = 'Step 2 of 5: Application submitted';
+                      progressVal = 40;
+                    } else if (statusVal === 'under_review') {
+                      stepText = 'Step 3 of 5: Document verification under review';
+                      progressVal = 60;
+                    } else if (statusVal === 'accepted') {
+                      stepText = 'Step 4 of 5: Offer letter received';
+                      progressVal = 80;
+                    } else if (statusVal === 'visa_applied' || statusVal === 'visa_approved' || statusVal === 'enrolled') {
+                      stepText = 'Step 5 of 5: Enrollment completed';
+                      progressVal = 100;
+                    }
+
+                    return (
+                      <div key={app.id || idx} className="p-4 bg-muted/50 rounded-xl">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-sm font-sans truncate max-w-[180px]">
+                            {app.university?.name || 'UK University'}
+                          </h4>
+                          <Badge className="bg-gold/10 text-gold border-gold/20 text-xs font-sans uppercase">
+                            {config.label}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3 font-sans">
+                          {app.program_name}
+                        </p>
+                        <Progress value={progressVal} className="h-1.5" />
+                        <p className="text-xs text-muted-foreground mt-2 font-sans">{stepText}</p>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </CardContent>
           </Card>

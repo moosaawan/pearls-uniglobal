@@ -1,106 +1,174 @@
 import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  const cookieStore = await cookies()
 
-  const supabase = createServerClient(
+  let supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
-          return request.cookies.getAll()
+          return cookieStore.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({
-            request,
-          })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            )
+          } catch {
+            // The `setAll` method was called from a Server Component.
+            // This can be ignored if you have middleware refreshing
+            // user sessions.
+          }
         },
       },
     }
   )
 
-  // IMPORTANT: DO NOT remove this getUser() call
-  // It refreshes the auth token and keeps the session alive
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Role-based route protection
-  const path = request.nextUrl.pathname
+  const pathname = request.nextUrl.pathname
 
-  // Protected routes that require authentication
-  const protectedRoutes = ['/student', '/staff', '/admin', '/settings']
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    path.startsWith(route)
-  )
+  // ============================================
+  // PUBLIC ROUTES (no authentication required)
+  // ============================================
+  const publicRoutes = [
+    '/',
+    '/about',
+    '/contact',
+    '/services',
+    '/blog',
+    '/faqs',
+    '/free-assessment',
+    '/ielts-academy',
+    '/study-in-uk',
+    '/team',
+  ]
 
-  if (isProtectedRoute && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('redirectTo', path)
-    return NextResponse.redirect(url)
-  }
+  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(route + '/'))
 
-  // Redirect logged-in users away from auth pages
-  const authRoutes = ['/login', '/register', '/forgot-password']
-  const isAuthRoute = authRoutes.some((route) => path.startsWith(route))
+  // ============================================
+  // AUTH ROUTES (redirect authenticated users away)
+  // ============================================
+  const authRoutes = ['/login', '/register', '/forgot-password', '/callback']
 
-  if (isAuthRoute && user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+  const isAuthRoute = authRoutes.some((route) => pathname === route || pathname.startsWith(route + '/'))
 
-    const role = profile?.role || 'student'
-    const url = request.nextUrl.clone()
+  // ============================================
+  // PROTECTED ROUTES (require authentication)
+  // ============================================
 
-    if (role === 'admin' || role === 'super_admin') {
-      url.pathname = '/admin'
-    } else if (role === 'staff') {
-      url.pathname = '/staff'
-    } else {
-      url.pathname = '/student'
-    }
-    return NextResponse.redirect(url)
-  }
+  // Student routes
+  const studentRoutes = ['/student']
 
-  // Role-based access control
+  // Staff routes
+  const staffRoutes = ['/staff']
+
+  // Admin routes
+  const adminRoutes = ['/admin']
+
+  // Determine user role
+  let userRole: string | null = null
+
   if (user) {
-    // Fetch user role from profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
 
-    const role = profile?.role || 'student'
-
-    if (path.startsWith('/admin') && !['admin', 'super_admin'].includes(role)) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/unauthorized'
-      return NextResponse.redirect(url)
-    }
-
-    if (
-      path.startsWith('/staff') &&
-      !['staff', 'admin', 'super_admin'].includes(role)
-    ) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/unauthorized'
-      return NextResponse.redirect(url)
+      userRole = profile?.role || null
+    } catch (error) {
+      console.error('Error fetching user role:', error)
     }
   }
 
-  return supabaseResponse
+  // ============================================
+  // ROUTE PROTECTION LOGIC
+  // ============================================
+
+  // If user is authenticated and trying to access auth pages, redirect to dashboard
+  if (user && isAuthRoute) {
+    // Redirect based on role
+    const redirectPath =
+      userRole === 'admin' || userRole === 'super_admin'
+        ? '/admin'
+        : userRole === 'staff'
+          ? '/staff'
+          : '/student'
+
+    return NextResponse.redirect(new URL(redirectPath, request.url))
+  }
+
+  // Public routes - always allow
+  if (isPublicRoute) {
+    return NextResponse.next()
+  }
+
+  // If user is not authenticated and trying to access protected routes
+  if (!user && (studentRoutes.some((route) => pathname.startsWith(route)) ||
+    staffRoutes.some((route) => pathname.startsWith(route)) ||
+    adminRoutes.some((route) => pathname.startsWith(route)))) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // ============================================
+  // ROLE-BASED ACCESS CONTROL
+  // ============================================
+
+  // Student routes - only students can access
+  if (studentRoutes.some((route) => pathname.startsWith(route))) {
+    if (user && userRole === 'student') {
+      return NextResponse.next()
+    }
+    // Redirect to appropriate dashboard or login
+    if (user) {
+      const redirectPath =
+        userRole === 'admin' || userRole === 'super_admin'
+          ? '/admin'
+          : userRole === 'staff'
+            ? '/staff'
+            : '/login'
+      return NextResponse.redirect(new URL(redirectPath, request.url))
+    }
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Staff routes - staff and admin can access
+  if (staffRoutes.some((route) => pathname.startsWith(route))) {
+    if (user && (userRole === 'staff' || userRole === 'admin' || userRole === 'super_admin')) {
+      return NextResponse.next()
+    }
+    // Redirect non-staff users
+    if (user) {
+      const redirectPath =
+        userRole === 'admin' || userRole === 'super_admin'
+          ? '/admin'
+          : '/student'
+      return NextResponse.redirect(new URL(redirectPath, request.url))
+    }
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  // Admin routes - only admin and super_admin can access
+  if (adminRoutes.some((route) => pathname.startsWith(route))) {
+    if (user && (userRole === 'admin' || userRole === 'super_admin')) {
+      return NextResponse.next()
+    }
+    // Redirect non-admin users
+    if (user) {
+      const redirectPath =
+        userRole === 'staff' ? '/staff' : '/student'
+      return NextResponse.redirect(new URL(redirectPath, request.url))
+    }
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  return NextResponse.next()
 }

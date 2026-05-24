@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { fadeUp, staggerContainer } from '@/lib/animations'
 import { Card, CardContent } from '@/components/ui/card'
@@ -12,6 +12,7 @@ import {
   Calendar, Trash2, CheckCircle2, RefreshCw, Filter, Sparkles
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 
 interface Lead {
   id: string
@@ -20,69 +21,15 @@ interface Lead {
   phone: string
   whatsapp: string
   source: 'WhatsApp' | 'Website' | 'Facebook' | 'Referral' | 'Instagram'
-  status: 'new' | 'contacted' | 'in_progress' | 'converted' | 'lost'
+  status: string
   intendedDegree: string
   assignedCounselor: string
+  assignedCounselorId?: string
   createdAt: string
   notes: string
 }
 
-const initialLeads: Lead[] = [
-  {
-    id: 'lead-1',
-    name: 'Zainab Qureshi',
-    email: 'zainab.q@gmail.com',
-    phone: '+92 301 2345678',
-    whatsapp: 'https://wa.me/923012345678',
-    source: 'WhatsApp',
-    status: 'new',
-    intendedDegree: 'BSc Business Management',
-    assignedCounselor: 'Sarah Ahmed',
-    createdAt: '2 hrs ago',
-    notes: 'Inquired about autumn 2026 scholarship limits for Oxford Brookes.'
-  },
-  {
-    id: 'lead-2',
-    name: 'Haris Abbasi',
-    email: 'haris.abbasi@hotmail.com',
-    phone: '+92 321 9876543',
-    whatsapp: 'https://wa.me/923219876543',
-    source: 'Website',
-    status: 'contacted',
-    intendedDegree: 'MSc Data Science',
-    assignedCounselor: 'Ali Raza',
-    createdAt: '1 day ago',
-    notes: 'High academic profile, cgpa 3.82. Ready for visa counseling.'
-  },
-  {
-    id: 'lead-3',
-    name: 'Mahnoor Shah',
-    email: 'mahnoor.s@yahoo.com',
-    phone: '+92 333 4567890',
-    whatsapp: 'https://wa.me/923334567890',
-    source: 'Facebook',
-    status: 'in_progress',
-    intendedDegree: 'LLM Law',
-    assignedCounselor: 'Sarah Ahmed',
-    createdAt: '3 days ago',
-    notes: 'Needs guidance on IELTS preparation waivers.'
-  },
-  {
-    id: 'lead-4',
-    name: 'Bilal Khan',
-    email: 'bilal.k@outlook.com',
-    phone: '+92 345 5678901',
-    whatsapp: 'https://wa.me/923455678901',
-    source: 'Referral',
-    status: 'converted',
-    intendedDegree: 'MBA International Business',
-    assignedCounselor: 'Ali Raza',
-    createdAt: '1 week ago',
-    notes: 'Enrolled! Upgraded to student profile successfully.'
-  }
-]
-
-const sourceColors: Record<Lead['source'], string> = {
+const sourceColors: Record<string, string> = {
   WhatsApp: 'bg-green-500/10 text-green-500 border-green-500/20',
   Website: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
   Facebook: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
@@ -90,39 +37,142 @@ const sourceColors: Record<Lead['source'], string> = {
   Instagram: 'bg-pink-500/10 text-pink-500 border-pink-500/20'
 }
 
-const statusConfig: Record<Lead['status'], { label: string; color: string }> = {
+const statusConfig: Record<string, { label: string; color: string }> = {
   new: { label: 'New Lead', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' },
   contacted: { label: 'Contacted', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
-  in_progress: { label: 'In Progress', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
+  qualified: { label: 'Qualified', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
+  proposal: { label: 'Proposal', color: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
+  negotiation: { label: 'Negotiation', color: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' },
   converted: { label: 'Converted', color: 'bg-green-500/10 text-green-500 border-green-500/20' },
   lost: { label: 'Lost', color: 'bg-red-500/10 text-red-500 border-red-500/20' }
 }
 
 export default function AdminLeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>(initialLeads)
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [staffList, setStaffList] = useState<{ id: string; name: string }[]>([])
   const [search, setSearch] = useState('')
   const [filterSource, setFilterSource] = useState<string>('all')
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleUpdateStatus = (id: string, name: string, stat: Lead['status']) => {
-    setLeads(leads.map(l => l.id === id ? { ...l, status: stat } : l))
-    toast.success(`Lead ${name} is now marked as "${stat.replace('_', ' ')}"!`)
+  const fetchLeadsAndStaff = async () => {
+    try {
+      const supabase = createClient()
+      
+      // 1. Fetch counselors list
+      const { data: staffData } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('role', ['staff', 'admin', 'super_admin'])
+      
+      if (staffData) {
+        setStaffList(staffData.map(s => ({ id: s.id, name: s.full_name || 'Anonymous' })))
+      }
+
+      // 2. Fetch leads
+      const { data: leadsData, error } = await supabase
+        .from('leads')
+        .select('*, counselor:profiles!counselor_id(full_name)')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      if (leadsData) {
+        const mappedLeads: Lead[] = leadsData.map((l: any) => ({
+          id: l.id,
+          name: l.full_name,
+          email: l.email,
+          phone: l.phone || '',
+          whatsapp: l.whatsapp || (l.phone ? `https://wa.me/${l.phone.replace(/[^0-9]/g, '')}` : ''),
+          source: (l.source || 'Website') as any,
+          status: l.status || 'new',
+          intendedDegree: l.desired_degree || 'Unspecified',
+          assignedCounselor: l.counselor?.full_name || 'Unassigned',
+          assignedCounselorId: l.counselor_id || '',
+          createdAt: new Date(l.created_at).toLocaleDateString(),
+          notes: l.notes || ''
+        }))
+        setLeads(mappedLeads)
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to sync CRM records.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleReassignCounselor = (id: string, name: string, counselor: string) => {
-    setLeads(leads.map(l => l.id === id ? { ...l, assignedCounselor: counselor } : l))
-    toast.success(`Assigned counselor for ${name} updated to ${counselor}!`)
+  useEffect(() => {
+    fetchLeadsAndStaff()
+  }, [])
+
+  const handleUpdateStatus = async (id: string, name: string, stat: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('leads')
+        .update({ status: stat, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setLeads(leads.map(l => l.id === id ? { ...l, status: stat } : l))
+      toast.success(`Lead ${name} is now marked as "${stat.replace('_', ' ')}"!`)
+    } catch {
+      toast.error('Failed to update lead status in database.')
+    }
   }
 
-  const handleConvertToStudent = (id: string, name: string) => {
-    setLeads(leads.map(l => l.id === id ? { ...l, status: 'converted' } : l))
-    toast.success(`🎉 Lead ${name} upgraded to Student Profile successfully!`)
+  const handleReassignCounselor = async (id: string, name: string, counselorId: string, counselorName: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('leads')
+        .update({ counselor_id: counselorId || null, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setLeads(leads.map(l => l.id === id ? { ...l, assignedCounselor: counselorName, assignedCounselorId: counselorId } : l))
+      toast.success(`Assigned counselor for ${name} updated to ${counselorName}!`)
+    } catch {
+      toast.error('Failed to update assigned counselor.')
+    }
   }
 
-  const handleDelete = (id: string) => {
-    setLeads(leads.filter(l => l.id !== id))
-    setSelectedLeadId(null)
-    toast.success('Lead record deleted.')
+  const handleConvertToStudent = async (id: string, name: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('leads')
+        .update({ status: 'converted', converted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setLeads(leads.map(l => l.id === id ? { ...l, status: 'converted' } : l))
+      toast.success(`🎉 Lead ${name} upgraded to Student Profile successfully!`)
+    } catch {
+      toast.error('Failed to convert lead.')
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      setLeads(leads.filter(l => l.id !== id))
+      setSelectedLeadId(null)
+      toast.success('Lead record deleted from database.')
+    } catch {
+      toast.error('Failed to delete lead record.')
+    }
   }
 
   const filtered = leads.filter(l => {
@@ -134,6 +184,17 @@ export default function AdminLeadsPage() {
   })
 
   const selectedLead = leads.find(l => l.id === selectedLeadId)
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-3 border-gold border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm font-sans">Syncing CRM records...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-6">
@@ -302,13 +363,17 @@ export default function AdminLeadsPage() {
                 <div className="space-y-2 border-t border-border pt-4 text-xs">
                   <label className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">Assigned Counselor</label>
                   <select
-                    value={selectedLead.assignedCounselor}
-                    onChange={(e) => handleReassignCounselor(selectedLead.id, selectedLead.name, e.target.value)}
+                    value={selectedLead.assignedCounselorId || ''}
+                    onChange={(e) => {
+                      const selected = staffList.find(s => s.id === e.target.value);
+                      handleReassignCounselor(selectedLead.id, selectedLead.name, e.target.value, selected ? selected.name : 'Unassigned');
+                    }}
                     className="w-full h-10 px-2.5 border border-border/50 rounded-xl bg-background outline-none focus:border-gold text-foreground"
                   >
-                    <option value="Sarah Ahmed">Sarah Ahmed (Staff Head)</option>
-                    <option value="Ali Raza">Ali Raza (Visa Specialist)</option>
-                    <option value="Bilal Qureshi">Bilal Qureshi (Education Counselor)</option>
+                    <option value="">Unassigned</option>
+                    {staffList.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -316,7 +381,7 @@ export default function AdminLeadsPage() {
                 <div className="space-y-2 border-t border-border pt-4 text-xs">
                   <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">Change Status</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {(['new', 'contacted', 'in_progress', 'lost'] as Lead['status'][]).map((st) => (
+                    {(['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'lost'] as string[]).map((st) => (
                       <Button
                         key={st}
                         size="sm"

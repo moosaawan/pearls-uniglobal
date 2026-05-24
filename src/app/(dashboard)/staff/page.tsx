@@ -50,30 +50,31 @@ export default function StaffDashboard() {
         .from('leads')
         .select('*', { count: 'exact', head: true })
 
-      // 5. Fetch appointments list
+      // 5. Fetch appointments list joined with profiles
       const { data: aptsData } = await supabase
         .from('appointments')
-        .select('*')
+        .select('*, profile:profiles!user_id(full_name)')
+        .order('scheduled_at', { ascending: true })
         .limit(5)
 
       setStats({
-        students: studentCount || 24,
-        reviews: reviewCount || 7,
-        appointments: aptCount || 3,
-        leads: leadsCount || 5,
+        students: studentCount || 0,
+        reviews: reviewCount || 0,
+        appointments: aptCount || 0,
+        leads: leadsCount || 0,
       })
 
       if (aptsData && aptsData.length > 0) {
         // Map real appointments data
-        const mapped = aptsData.map((a, i) => ({
+        const mapped = aptsData.map((a: any, i: number) => ({
           id: a.id,
-          name: a.full_name || `Student ${i+1}`,
-          type: a.purpose || 'Counseling Session',
-          time: new Date(a.date).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+          name: a.profile?.full_name || `Student ${i+1}`,
+          type: a.type ? a.type.replace(/_/g, ' ') : 'Counseling Session',
+          time: new Date(a.scheduled_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
         }))
         setAppointments(mapped)
       } else {
-        setAppointments(fallbackAppointments)
+        setAppointments([])
       }
 
     } catch {

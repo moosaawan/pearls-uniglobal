@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { fadeUp, staggerContainer } from '@/lib/animations'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Progress } from '@/components/ui/progress'
 import { Plus, GraduationCap, Calendar, MapPin, ArrowRight, FileText, Clock } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/stores/authStore'
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: 'Draft', color: 'bg-gray-500/10 text-gray-500 border-gray-500/20' },
@@ -18,27 +20,85 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   rejected: { label: 'Rejected', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
   visa_applied: { label: 'Visa Applied', color: 'bg-purple-500/10 text-purple-500 border-purple-500/20' },
   visa_approved: { label: 'Visa Approved', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
+  visa_rejected: { label: 'Visa Rejected', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
+  enrolled: { label: 'Enrolled', color: 'bg-gold/10 text-gold border-gold/20' },
 }
 
-const mockApplications = [
-  {
-    id: '1', university: 'University of Manchester', program: 'MSc Computer Science',
-    status: 'under_review', progress: 60, intake: 'Sep 2026', location: 'Manchester, UK', submitted: '2 weeks ago',
-  },
-  {
-    id: '2', university: 'University of Leeds', program: 'MBA',
-    status: 'draft', progress: 20, intake: 'Jan 2027', location: 'Leeds, UK', submitted: null,
-  },
-  {
-    id: '3', university: 'University of Birmingham', program: 'MSc Data Science',
-    status: 'accepted', progress: 100, intake: 'Sep 2026', location: 'Birmingham, UK', submitted: '1 month ago',
-  },
-]
+interface Application {
+  id: string
+  university: string
+  program: string
+  status: string
+  progress: number
+  intake: string
+  location: string
+  submitted: string | null
+}
 
 export default function ApplicationsPage() {
+  const { user } = useAuthStore()
   const [tab, setTab] = useState('all')
+  const [applications, setApplications] = useState<Application[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filtered = tab === 'all' ? mockApplications : mockApplications.filter((a) => a.status === tab)
+  useEffect(() => {
+    if (!user) return
+
+    const fetchApplications = async () => {
+      try {
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from('applications')
+          .select('*, university:universities(*)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+
+        if (data) {
+          const mapped: Application[] = data.map((app: any) => {
+            const statusVal = app.status || 'draft'
+            let progressVal = 20
+            if (statusVal === 'submitted') progressVal = 40
+            else if (statusVal === 'under_review') progressVal = 60
+            else if (statusVal === 'accepted') progressVal = 80
+            else if (statusVal === 'visa_applied' || statusVal === 'visa_approved' || statusVal === 'enrolled') progressVal = 100
+
+            return {
+              id: app.id,
+              university: app.university?.name || 'UK University',
+              program: app.program_name,
+              status: statusVal,
+              progress: progressVal,
+              intake: app.preferred_intake || 'September 2026',
+              location: app.university ? `${app.university.city}, ${app.university.country}` : 'United Kingdom',
+              submitted: app.submitted_at ? new Date(app.submitted_at).toLocaleDateString() : null
+            }
+          })
+          setApplications(mapped)
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchApplications()
+  }, [user])
+
+  const filtered = tab === 'all' ? applications : applications.filter((a) => a.status === tab)
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-3 border-gold border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm font-sans">Syncing your applications...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-6">

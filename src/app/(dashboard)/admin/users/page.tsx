@@ -137,10 +137,17 @@ export default function AdminUsersPage() {
     }
   }
 
-  const filtered = profiles.filter(p =>
-    (p.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (p.email || '').toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = profiles.filter(p => {
+    // Hide administrative accounts and self completely
+    if (p.role === 'admin' || p.role === 'super_admin' || p.id === currentUser?.id) {
+      return false
+    }
+
+    return (
+      (p.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.email || '').toLowerCase().includes(search.toLowerCase())
+    )
+  })
 
   const pendingUsers = filtered.filter(p => p.account_status === 'pending')
   const activeUsers = filtered.filter(p => p.account_status !== 'pending')

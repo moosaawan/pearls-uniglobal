@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { fadeUp, staggerContainer } from '@/lib/animations'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -11,6 +11,8 @@ import {
   BookOpen, Star, RefreshCw, AlertCircle, XCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
+import { useAuthStore } from '@/stores/authStore'
 
 const appointmentTypes = [
   { value: 'CONSULTATION', label: 'General Consultation', desc: 'Discuss study abroad plans, programs, and budgets' },
@@ -21,61 +23,119 @@ const appointmentTypes = [
 ]
 
 export default function AppointmentsPage() {
+  const { user } = useAuthStore()
   const [showBook, setShowBook] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadingList, setLoadingList] = useState(true)
   const [type, setType] = useState('CONSULTATION')
   const [date, setDate] = useState('2026-05-28')
   const [time, setTime] = useState('14:30')
   const [notes, setNotes] = useState('')
+  const [appointments, setAppointments] = useState<any[]>([])
 
-  const [appointments, setAppointments] = useState([
-    {
-      id: 'apt-1',
-      type: 'CONSULTATION',
-      scheduledAt: 'May 25, 2026 at 3:00 PM',
-      counselor: 'Sarah Ahmed (Senior Counselor)',
-      status: 'CONFIRMED',
-      meetingUrl: 'https://meet.google.com/abc-defg-hij',
-      notes: 'Please bring your academic transcripts and O/A-Levels result sheets.',
-    },
-    {
-      id: 'apt-2',
-      type: 'IELTS_COUNSELING',
-      scheduledAt: 'May 20, 2026 at 11:30 AM',
-      counselor: 'Ali Raza (IELTS Lead Trainer)',
-      status: 'COMPLETED',
-      meetingUrl: null,
-      notes: 'Initial diagnostics complete. Target band identified: 7.5.',
-    },
-  ])
+  const fetchAppointments = async () => {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('scheduled_at', { ascending: false })
 
-  const handleBook = (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    
-    setTimeout(() => {
-      const selectedType = appointmentTypes.find((t) => t.value === type)
-      const newApt = {
-        id: `apt-${Date.now()}`,
-        type,
-        scheduledAt: `${date} at ${time}`,
-        counselor: 'Sarah Ahmed (Senior Counselor)',
-        status: 'SCHEDULED',
-        meetingUrl: 'https://meet.google.com/xyz-pdqr-wst',
-        notes: notes || 'No additional notes provided.',
+      if (error) throw error
+
+      if (data) {
+        const mapped = data.map((a: any) => ({
+          id: a.id,
+          type: (a.type || 'consultation').toUpperCase(),
+          scheduledAt: new Date(a.scheduled_at).toLocaleString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          counselor: 'Sarah Ahmed (Senior Counselor)',
+          status: (a.status || 'scheduled').toUpperCase(),
+          meetingUrl: a.meeting_url || null,
+          notes: a.notes || '',
+        }))
+        setAppointments(mapped)
       }
-
-      setAppointments([newApt, ...appointments])
-      setLoading(false)
-      setShowBook(false)
-      setNotes('')
-      toast.success('Appointment booked successfully! A calendar invite has been sent to your email.')
-    }, 1200)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingList(false)
+    }
   }
 
-  const handleCancel = (id: string, type: string) => {
-    setAppointments(appointments.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a))
-    toast.success(`Session for ${type.replace('_', ' ')} cancelled.`)
+  useEffect(() => {
+    if (user) {
+      fetchAppointments()
+    }
+  }, [user])
+
+  const handleBook = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    setLoading(true)
+    
+    try {
+      const supabase = createClient()
+      const scheduledDateTime = `${date}T${time}:00`
+      
+      const { error } = await supabase
+        .from('appointments')
+        .insert({
+          user_id: user.id,
+          type: type.toLowerCase() as any,
+          scheduled_at: scheduledDateTime,
+          duration: 30,
+          status: 'scheduled',
+          notes: notes || null,
+          meeting_url: 'https://meet.google.com/xyz-pdqr-wst'
+        })
+
+      if (error) throw error
+
+      toast.success('Appointment booked successfully! A calendar invite has been sent to your email.')
+      setShowBook(false)
+      setNotes('')
+      fetchAppointments()
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to book appointment in database.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCancel = async (id: string, typeVal: string) => {
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setAppointments(appointments.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a))
+      toast.success(`Session for ${typeVal.replace('_', ' ')} cancelled.`)
+    } catch {
+      toast.error('Failed to cancel appointment.')
+    }
+  }
+
+  if (loadingList) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-3 border-gold border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground text-sm font-sans">Syncing your appointments...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

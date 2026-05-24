@@ -80,11 +80,15 @@ export default function TopBar({ onMenuClick, user }: TopBarProps) {
               <p className="text-xs text-muted-foreground font-normal">{user?.email}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="font-sans cursor-pointer">
-              <Link href="/student/settings"><User className="w-4 h-4 mr-2" /> Profile</Link>
+            <DropdownMenuItem
+              render={<Link href="/student/settings" className="font-sans cursor-pointer flex items-center w-full" />}
+            >
+              <User className="w-4 h-4 mr-2" /> Profile
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="font-sans cursor-pointer">
-              <Link href="/student/settings"><Settings className="w-4 h-4 mr-2" /> Settings</Link>
+            <DropdownMenuItem
+              render={<Link href="/student/settings" className="font-sans cursor-pointer flex items-center w-full" />}
+            >
+              <Settings className="w-4 h-4 mr-2" /> Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive font-sans cursor-pointer">
