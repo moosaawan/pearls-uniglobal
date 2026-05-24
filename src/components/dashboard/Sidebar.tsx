@@ -77,9 +77,14 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const navItems = getNavItems()
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      window.location.href = '/login'
+    }
   }
 
   const SidebarInner = () => (

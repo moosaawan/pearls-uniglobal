@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { fadeUp, staggerContainer } from '@/lib/animations'
 import { Card, CardContent } from '@/components/ui/card'
@@ -9,72 +9,60 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   Globe, Search, Plus, Edit, Trash2, Calendar, User,
-  FileText, Check, Eye, X, BookOpen
+  FileText, Check, Eye, X, BookOpen, Loader2
 } from 'lucide-react'
 import { toast } from 'sonner'
-
-interface BlogPost {
-  id: string
-  title: string
-  category: 'Study Abroad' | 'Visa Guide' | 'IELTS Tips' | 'Student Stories'
-  status: 'published' | 'draft'
-  author: string
-  date: string
-  views: number
-  content: string
-}
-
-const initialPosts: BlogPost[] = [
-  {
-    id: 'post-1',
-    title: 'Top UK Scholarships for Pakistani Students in 2026',
-    category: 'Study Abroad',
-    status: 'published',
-    author: 'Sarah Ahmed',
-    date: 'May 10, 2026',
-    views: 450,
-    content: 'Discover the fully-funded Commonwealth, Chevening, and Great scholarships available for postgraduates from Pakistan this year, including requirements and deadlines.'
-  },
-  {
-    id: 'post-2',
-    title: 'UK Student Visa Checklist: Avoid Common Rejection Mistakes',
-    category: 'Visa Guide',
-    status: 'published',
-    author: 'Ali Raza',
-    date: 'May 14, 2026',
-    views: 890,
-    content: 'Avoid visa delays or rejections by double-checking financial maintenance proof requirements, TB certificate validity, and CAS letter details.'
-  },
-  {
-    id: 'post-3',
-    title: 'IELTS Band 7.5 Preparation Strategy & Free Resources',
-    category: 'IELTS Tips',
-    status: 'draft',
-    author: 'Sarah Ahmed',
-    date: 'Pending Publish',
-    views: 0,
-    content: 'Get access to actionable tips on listening, speaking, reading, and academic writing modules to score a minimum band score of 7.5.'
-  }
-]
+import { createClient } from '@/lib/supabase/client'
 
 export default function AdminBlogPage() {
-  const [posts, setPosts] = useState<BlogPost[]>(initialPosts)
+  const [posts, setPosts] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   
   // Editor panel states
   const [isEditing, setIsEditing] = useState(false)
-  const [formData, setFormData] = useState<Partial<BlogPost>>({
+  const [formData, setFormData] = useState<any>({
     title: '',
     category: 'Study Abroad',
-    status: 'draft',
+    published: false,
     author: 'Sarah Ahmed',
     content: ''
   })
 
-  const handleSelectPost = (post: BlogPost) => {
+  const fetchPosts = async () => {
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setPosts(data || [])
+    } catch (err) {
+      console.error('Error fetching blog posts:', err)
+      toast.error('Failed to load blog posts.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPosts()
+  }, [])
+
+  const handleSelectPost = (post: any) => {
     setSelectedPostId(post.id)
-    setFormData(post)
+    setFormData({
+      title: post.title,
+      category: post.category || 'Study Abroad',
+      published: post.published || false,
+      author: post.author || 'Sarah Ahmed',
+      content: post.content
+    })
     setIsEditing(true)
   }
 
@@ -83,54 +71,95 @@ export default function AdminBlogPage() {
     setFormData({
       title: '',
       category: 'Study Abroad',
-      status: 'draft',
+      published: false,
       author: 'Sarah Ahmed',
       content: ''
     })
     setIsEditing(true)
   }
 
-  const handleDelete = (id: string) => {
-    setPosts(posts.filter(p => p.id !== id))
-    setSelectedPostId(null)
-    setIsEditing(false)
-    toast.success('Blog article removed from CMS.')
+  const handleDelete = async (id: string) => {
+    const confirm = window.confirm('Are you sure you want to permanently delete this blog post from the public website?')
+    if (!confirm) return
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('blog_posts')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      toast.success('Blog article removed from CMS.')
+      setSelectedPostId(null)
+      setIsEditing(false)
+      fetchPosts()
+    } catch (err) {
+      console.error('Error deleting post:', err)
+      toast.error('Failed to delete blog post.')
+    }
   }
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.title || !formData.content) {
       toast.error('Please enter article title and body content.')
       return
     }
 
-    if (selectedPostId) {
-      // Update
-      setPosts(posts.map(p => p.id === selectedPostId ? { ...p, ...formData } as BlogPost : p))
-      toast.success(`Successfully saved "${formData.title}"!`)
-    } else {
-      // Create
-      const newPost: BlogPost = {
-        id: `post-${Date.now()}`,
+    setSaving(true)
+    try {
+      const supabase = createClient()
+      const slugVal = (formData.title || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+      
+      const postData = {
         title: formData.title,
+        slug: selectedPostId ? slugVal : `${slugVal}-${Date.now()}`,
         category: formData.category || 'Study Abroad',
-        status: formData.status || 'draft',
+        published: formData.published,
         author: formData.author || 'Sarah Ahmed',
-        date: formData.status === 'published' ? 'Today' : 'Pending Publish',
-        views: 0,
-        content: formData.content
+        content: formData.content,
+        excerpt: formData.content.substring(0, 150) + '...',
+        updated_at: new Date().toISOString()
       }
-      setPosts([newPost, ...posts])
-      toast.success(`Article "${formData.title}" added to CMS list!`)
-    }
 
-    setIsEditing(false)
-    setSelectedPostId(null)
+      if (selectedPostId) {
+        // Update
+        const { error } = await supabase
+          .from('blog_posts')
+          .update(postData)
+          .eq('id', selectedPostId)
+
+        if (error) throw error
+        toast.success(`Successfully saved "${formData.title}"!`)
+      } else {
+        // Create
+        const { error } = await supabase
+          .from('blog_posts')
+          .insert([postData])
+
+        if (error) throw error
+        toast.success(`Article "${formData.title}" added to CMS list!`)
+      }
+
+      setIsEditing(false)
+      setSelectedPostId(null)
+      fetchPosts()
+    } catch (err) {
+      console.error('Error saving article:', err)
+      toast.error('Failed to save article. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const filtered = posts.filter(p =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||
-    p.category.toLowerCase().includes(search.toLowerCase())
+    (p.category || '').toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -153,16 +182,16 @@ export default function AdminBlogPage() {
       {/* Metrics Row */}
       <motion.div variants={fadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-4 font-sans text-xs">
         {[
-          { label: 'Published Posts', value: posts.filter(p => p.status === 'published').length, color: 'text-green-500' },
-          { label: 'Draft Articles', value: posts.filter(p => p.status === 'draft').length, color: 'text-yellow-600' },
-          { label: 'Total Read Views', value: posts.reduce((sum, p) => sum + p.views, 0), color: 'text-gold' },
-          { label: 'Blog Categories', value: 4, color: 'text-blue-500' },
+          { label: 'Published Posts', value: posts.filter(p => p.published).length, color: 'text-green-500' },
+          { label: 'Draft Articles', value: posts.filter(p => !p.published).length, color: 'text-yellow-600' },
+          { label: 'Total Articles', value: posts.length, color: 'text-gold' },
+          { label: 'CMS Status', value: 'Live & Connected', color: 'text-blue-500' },
         ].map((item, idx) => (
           <Card key={idx} className="border-border/50 shadow-sm">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">{item.label}</p>
-                <p className={`text-xl font-bold mt-1 ${item.color}`}>{item.value}</p>
+                <p className={`text-sm font-bold mt-1 ${item.color}`}>{item.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -183,7 +212,12 @@ export default function AdminBlogPage() {
       {/* List + Editor layout */}
       <div className="grid lg:grid-cols-3 gap-6 items-start font-sans">
         <div className="lg:col-span-2 space-y-3.5">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground text-sm font-sans">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto text-gold mb-2" />
+              Loading blog catalog from database...
+            </div>
+          ) : filtered.length === 0 ? (
             <Card className="border-dashed border-2 border-border/40 text-center py-12">
               <CardContent>
                 <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
@@ -210,7 +244,10 @@ export default function AdminBlogPage() {
                         </h4>
                         <div className="flex flex-wrap items-center gap-3 text-muted-foreground pt-0.5">
                           <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" /> {p.author}</span>
-                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {p.date}</span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" /> 
+                            {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -220,9 +257,9 @@ export default function AdminBlogPage() {
                         {p.category}
                       </Badge>
                       <Badge className={`text-[8px] uppercase font-bold py-0.5 px-2 ${
-                        p.status === 'published' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
+                        p.published ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
                       }`}>
-                        {p.status}
+                        {p.published ? 'published' : 'draft'}
                       </Badge>
                     </div>
                   </CardContent>
@@ -288,8 +325,8 @@ export default function AdminBlogPage() {
                   <div className="space-y-1.5">
                     <label className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider font-medium">CMS Status</label>
                     <select
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                      value={formData.published ? 'published' : 'draft'}
+                      onChange={(e) => setFormData({ ...formData, published: e.target.value === 'published' })}
                       className="w-full h-10 px-2.5 border border-border/50 rounded-xl bg-background outline-none text-xs text-foreground"
                     >
                       <option value="draft">Draft Mode (Internal review)</option>
@@ -301,7 +338,7 @@ export default function AdminBlogPage() {
                     <label className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider font-medium">Content / Article Body</label>
                     <textarea
                       required
-                      rows={5}
+                      rows={6}
                       value={formData.content || ''}
                       onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                       placeholder="Write your rich newsletter content here..."
@@ -312,9 +349,19 @@ export default function AdminBlogPage() {
                   <div className="pt-4 border-t border-border flex flex-col gap-2">
                     <Button
                       type="submit"
-                      className="w-full bg-gold hover:bg-gold-dark text-navy font-bold rounded-xl h-9.5 text-xs flex items-center justify-center gap-1.5"
+                      disabled={saving}
+                      className="w-full bg-gold hover:bg-gold-dark text-navy font-bold rounded-xl h-9.5 text-xs flex items-center justify-center gap-1.5 font-sans"
                     >
-                      <Check className="w-4 h-4" /> Save Article Draft
+                      {saving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" /> Save Article Draft
+                        </>
+                      )}
                     </Button>
                     
                     {selectedPostId && (
@@ -322,7 +369,7 @@ export default function AdminBlogPage() {
                         type="button"
                         onClick={() => handleDelete(selectedPostId)}
                         variant="outline"
-                        className="w-full border-red-500/20 text-red-500 hover:bg-red-500/10 rounded-xl h-9.5 text-xs flex items-center justify-center gap-1.5"
+                        className="w-full border-red-500/20 text-red-500 hover:bg-red-500/10 rounded-xl h-9.5 text-xs flex items-center justify-center gap-1.5 font-sans"
                       >
                         <Trash2 className="w-4 h-4" /> Remove Post
                       </Button>

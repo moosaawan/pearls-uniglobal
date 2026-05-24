@@ -23,10 +23,23 @@ export default function TopBar({ onMenuClick, user }: TopBarProps) {
   const router = useRouter()
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      window.location.href = '/login'
+    }
   }
+
+  const getSettingsPath = () => {
+    if (!user) return '/student/settings'
+    if (user.role === 'admin' || user.role === 'super_admin') return '/admin/settings'
+    if (user.role === 'staff') return '/staff/settings'
+    return '/student/settings'
+  }
+  const settingsPath = getSettingsPath()
 
   return (
     <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 md:px-6 gap-4 sticky top-0 z-30">
@@ -81,12 +94,12 @@ export default function TopBar({ onMenuClick, user }: TopBarProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              render={<Link href="/student/settings" className="font-sans cursor-pointer flex items-center w-full" />}
+              render={<Link href={settingsPath} className="font-sans cursor-pointer flex items-center w-full" />}
             >
               <User className="w-4 h-4 mr-2" /> Profile
             </DropdownMenuItem>
             <DropdownMenuItem
-              render={<Link href="/student/settings" className="font-sans cursor-pointer flex items-center w-full" />}
+              render={<Link href={settingsPath} className="font-sans cursor-pointer flex items-center w-full" />}
             >
               <Settings className="w-4 h-4 mr-2" /> Settings
             </DropdownMenuItem>

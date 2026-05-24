@@ -109,10 +109,16 @@ export default function Navbar() {
   }, [])
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    setUser(null)
-    setOpen(false)
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      setUser(null)
+      setOpen(false)
+      window.location.href = '/'
+    }
   }
 
   // Get dynamic dashboard paths based on role
